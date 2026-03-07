@@ -1,0 +1,129 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+
+from tickerforge.models import Asset, ContractCycle, ContractSpec, Exchange, ExpirationRule
+
+
+@dataclass
+class SpecRepository:
+    exchanges: dict[str, Exchange]
+    contracts: dict[str, ContractSpec]
+    contract_cycles: dict[str, ContractCycle]
+    expiration_rules: dict[str, ExpirationRule]
+
+    def get_exchange(self, code: str) -> Exchange:
+        key = code.upper()
+        try:
+            return self.exchanges[key]
+        except KeyError as exc:
+            raise KeyError(f"Unknown exchange: {code}") from exc
+
+    def get_contract(self, symbol: str) -> ContractSpec:
+        key = symbol.upper()
+        try:
+            return self.contracts[key]
+        except KeyError as exc:
+            raise KeyError(f"Unknown contract: {symbol}") from exc
+
+
+def _read_yaml(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected YAML mapping in {path}")
+        return data
+
+
+def _load_exchanges(spec_root: Path) -> dict[str, Exchange]:
+    exchanges: dict[str, Exchange] = {}
+    exchanges_dir = spec_root / "exchanges"
+    for yaml_path in sorted(exchanges_dir.glob("*.yaml")):
+        raw = _read_yaml(yaml_path)
+        code = str(raw.get("exchange", "")).upper()
+        if not code:
+            raise ValueError(f"Missing 'exchange' in {yaml_path}")
+
+        assets_data = raw.get("assets", {})
+        assets: dict[str, Asset] = {}
+        if isinstance(assets_data, dict):
+            for symbol, payload in assets_data.items():
+                payload = payload or {}
+                if not isinstance(payload, dict):
+                    raise ValueError(f"Invalid asset '{symbol}' in {yaml_path}")
+                assets[symbol.upper()] = Asset(symbol=symbol.upper(), **payload)
+
+        exchanges[code] = Exchange(
+            code=code,
+            mic=raw.get("mic"),
+            full_name=raw.get("full_name"),
+            country=raw.get("country"),
+            timezone=raw.get("timezone"),
+            assets=assets,
+        )
+    return exchanges
+
+
+def _load_cycles_and_rules(spec_root: Path) -> tuple[dict[str, ContractCycle], dict[str, ExpirationRule]]:
+    source_path = spec_root / "schemas" / "contract_cycles.yaml"
+    raw = _read_yaml(source_path)
+
+    cycles: dict[str, ContractCycle] = {}
+    for name, payload in (raw.get("contract_cycles") or {}).items():
+        payload = payload or {}
+        cycles[name] = ContractCycle(name=name, **payload)
+
+    rules: dict[str, ExpirationRule] = {}
+    for name, payload in (raw.get("expiration_rules") or {}).items():
+        payload = payload or {}
+        rules[name] = ExpirationRule(name=name, **payload)
+
+    return cycles, rules
+
+
+def _load_contracts(spec_root: Path) -> list[ContractSpec]:
+    contracts: list[ContractSpec] = []
+    contracts_dir = spec_root / "contracts"
+    for yaml_path in sorted(contracts_dir.glob("**/*.yaml")):
+        raw = _read_yaml(yaml_path)
+        items = raw.get("contracts")
+        if items is None:
+            continue
+        if not isinstance(items, list):
+            raise ValueError(f"Expected list under 'contracts' in {yaml_path}")
+        for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f"Invalid contract item in {yaml_path}")
+            contracts.append(ContractSpec(**item))
+    return contracts
+
+
+def load_spec(path: str | Path) -> SpecRepository:
+    spec_root = Path(path).expanduser().resolve()
+    if not spec_root.exists():
+        raise FileNotFoundError(f"Spec path does not exist: {spec_root}")
+
+    exchanges = _load_exchanges(spec_root)
+    contract_cycles, expiration_rules = _load_cycles_and_rules(spec_root)
+
+    contracts: dict[str, ContractSpec] = {}
+    for contract in _load_contracts(spec_root):
+        if contract.contract_cycle not in contract_cycles:
+            raise ValueError(
+                f"Contract {contract.symbol} references unknown cycle '{contract.contract_cycle}'"
+            )
+        if contract.expiration_rule not in expiration_rules:
+            raise ValueError(
+                f"Contract {contract.symbol} references unknown rule '{contract.expiration_rule}'"
+            )
+        contracts[contract.symbol.upper()] = contract
+
+    return SpecRepository(
+        exchanges=exchanges,
+        contracts=contracts,
+        contract_cycles=contract_cycles,
+        expiration_rules=expiration_rules,
+    )
