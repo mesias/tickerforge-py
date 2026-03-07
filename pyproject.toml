@@ -25,3 +25,6 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["tickerforge*"]
+
+[tool.setuptools.package-data]
+tickerforge = ["py.typed"]
