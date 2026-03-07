@@ -6,8 +6,11 @@ generates/parses derivatives tickers.
 ## Install
 
 ```bash
-pip install -e .[dev]
+pip install "git+https://github.com/mesias/tickerforge-py.git"
 ```
+
+`tickerforge` depends on `tickerforge-spec-data` directly from GitHub:
+`https://github.com/mesias/tickerforge-spec` (Python package at `packaging/python`).
 
 ## Usage
 
@@ -21,6 +24,15 @@ print(ticker)  # e.g. INDM25
 parser = TickerParser(spec_path="spec")
 parsed = parser.parse(ticker, reference_date="2025-04-01")
 print(parsed.symbol, parsed.year, parsed.month)
+```
+
+You can also rely on the packaged spec data and omit `spec_path`:
+
+```python
+from tickerforge import TickerForge
+
+forge = TickerForge()
+print(forge.generate("IND", date="2025-04-01"))
 ```
 
 ## What this first version supports

@@ -13,6 +13,7 @@ dependencies = [
   "pydantic",
   "exchange_calendars",
   "python-dateutil",
+  "tickerforge-spec-data @ git+https://github.com/mesias/tickerforge-spec.git@main#subdirectory=packaging/python",
 ]
 
 [project.optional-dependencies]

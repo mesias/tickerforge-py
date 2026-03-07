@@ -72,7 +72,7 @@ def generate_ticker_for_contract(
 
 
 class TickerForge:
-    def __init__(self, spec_path: str = "spec") -> None:
+    def __init__(self, spec_path: str | None = None) -> None:
         self.spec = load_spec(spec_path)
 
     def generate(self, symbol: str, date: str | date | datetime, offset: int = 0) -> str:

@@ -101,8 +101,20 @@ def _load_contracts(spec_root: Path) -> list[ContractSpec]:
     return contracts
 
 
-def load_spec(path: str | Path) -> SpecRepository:
-    spec_root = Path(path).expanduser().resolve()
+def _default_spec_path() -> Path:
+    try:
+        from tickerforge_spec_data import get_spec_root
+    except ImportError as exc:
+        raise RuntimeError(
+            "No spec path provided and tickerforge-spec-data is not installed. "
+            "Install dependency or pass spec_path explicitly."
+        ) from exc
+
+    return Path(get_spec_root()).expanduser().resolve()
+
+
+def load_spec(path: str | Path | None = None) -> SpecRepository:
+    spec_root = _default_spec_path() if path is None else Path(path).expanduser().resolve()
     if not spec_root.exists():
         raise FileNotFoundError(f"Spec path does not exist: {spec_root}")
 

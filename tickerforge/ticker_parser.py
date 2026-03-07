@@ -69,7 +69,7 @@ def parse_ticker(
 
 
 class TickerParser:
-    def __init__(self, spec_path: str = "spec") -> None:
+    def __init__(self, spec_path: str | None = None) -> None:
         self.spec = load_spec(spec_path)
 
     def parse(
