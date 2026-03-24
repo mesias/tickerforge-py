@@ -43,6 +43,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch tickerforge-spec into spec/
+        run: |
+          git clone --depth 1 --branch main https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
+          cp -r /tmp/tickerforge-spec/spec .
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:

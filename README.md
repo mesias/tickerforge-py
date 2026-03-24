@@ -48,6 +48,10 @@ print(forge.generate("IND", date="2025-04-01"))
 
 ## Run tests
 
+Tests load YAML from a `spec/` directory at the project root (same layout as the [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) repo). Clone it once:
+
 ```bash
+git clone --depth 1 https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
+cp -r /tmp/tickerforge-spec/spec .
 pytest
 ```
