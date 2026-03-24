@@ -13,7 +13,7 @@ dependencies = [
   "pydantic",
   "exchange_calendars",
   "python-dateutil",
-  "tickerforge-spec-data @ git+https://github.com/mesias/tickerforge-spec.git@main#subdirectory=packaging/python",
+  "tickerforge-spec-data @ git+https://github.com/mesias/tickerforge-spec.git@main",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +25,7 @@ dev = [
   "isort",
   "ruff",
   "mypy",
+  "pandas",
   "types-PyYAML",
   "types-python-dateutil",
 ]

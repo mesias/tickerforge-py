@@ -7,7 +7,7 @@ from dateutil import parser as date_parser
 
 from tickerforge.calendars import get_calendar
 from tickerforge.contract_cycle import resolve_contract_months
-from tickerforge.expiration_rules import resolve_expiration
+from tickerforge.expiration_rules import _month_sessions, resolve_expiration
 from tickerforge.models import ContractSpec
 from tickerforge.month_codes import month_to_code
 from tickerforge.spec_loader import SpecRepository, load_spec
@@ -29,6 +29,15 @@ def _format_ticker(contract: ContractSpec, year: int, month: int) -> str:
         year=year,
         month=month,
     )
+
+
+def _still_tradeable(
+    as_of_date: date, expiration_date: date, contract: ContractSpec
+) -> bool:
+    """B3 monthly FX (DOL/WDO) rolls off on expiry day; index-style contracts stay through it."""
+    if contract.symbol in ("DOL", "WDO"):
+        return as_of_date < expiration_date
+    return as_of_date <= expiration_date
 
 
 def _is_month_in_calendar_range(calendar, year: int, month: int) -> bool:
@@ -58,8 +67,10 @@ def generate_ticker_for_contract(
         for month in resolve_contract_months(cycle, year):
             if not _is_month_in_calendar_range(calendar, year, month):
                 continue
+            if not _month_sessions(calendar, year, month):
+                continue
             expiration_date = resolve_expiration(contract, year, month, rule, calendar)
-            if as_of_date <= expiration_date:
+            if _still_tradeable(as_of_date, expiration_date, contract):
                 eligible_contracts.append((year, month))
 
     if not eligible_contracts:

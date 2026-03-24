@@ -21,8 +21,7 @@ generates/parses derivatives tickers.
 pip install "git+https://github.com/mesias/tickerforge-py.git"
 ```
 
-`tickerforge` depends on `tickerforge-spec-data` directly from GitHub:
-`https://github.com/mesias/tickerforge-spec` (Python package at `packaging/python`).
+`tickerforge` depends on `tickerforge-spec-data` from the same repository root (`pyproject.toml` in [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec)).
 
 ## Usage
 
@@ -58,7 +57,7 @@ print(forge.generate("IND", date="2025-04-01"))
 
 ## Run tests
 
-Tests load YAML from a `spec/` directory at the project root (same layout as the [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) repo). Clone it once:
+Tests load YAML and fixtures from a `spec/` directory at the project root—the same tree bundled into the [`tickerforge-spec-data`](https://github.com/mesias/tickerforge-spec) wheel from that repo’s root. Clone the spec repo once:
 
 ```bash
 git clone --depth 1 https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec

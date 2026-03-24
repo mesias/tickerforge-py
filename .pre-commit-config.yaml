@@ -26,3 +26,4 @@ repos:
           - python-dateutil
           - types-python-dateutil
           - exchange-calendars
+          - pytest

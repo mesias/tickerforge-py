@@ -18,9 +18,19 @@ WEEKDAY_NAME_TO_NUMBER = {
 
 def _month_sessions(calendar, year: int, month: int) -> list[date]:
     last_day = monthrange(year, month)[1]
+    month_start = date(year, month, 1)
+    month_end = date(year, month, last_day)
+    cal_first = calendar.first_session.date()
+    cal_last = calendar.last_session.date()
+    if month_end < cal_first or month_start > cal_last:
+        return []
+    clip_start = max(month_start, cal_first)
+    clip_end = min(month_end, cal_last)
+    if clip_start > clip_end:
+        return []
     sessions = calendar.sessions_in_range(
-        f"{year:04d}-{month:02d}-01",
-        f"{year:04d}-{month:02d}-{last_day:02d}",
+        clip_start.isoformat(),
+        clip_end.isoformat(),
     )
     return [session.date() for session in sessions]
 
