@@ -59,11 +59,15 @@ def parse_ticker(
         elif year > ref_date.year + 50:
             year -= 100
 
-        valid_months = resolve_contract_months(spec.contract_cycles[contract.contract_cycle], year)
+        valid_months = resolve_contract_months(
+            spec.contract_cycles[contract.contract_cycle], year
+        )
         if month not in valid_months:
             continue
 
-        return ParsedTicker(symbol=contract.symbol, year=year, month=month, contract=contract)
+        return ParsedTicker(
+            symbol=contract.symbol, year=year, month=month, contract=contract
+        )
 
     raise ValueError(f"Unable to parse ticker: {ticker}")
 
@@ -77,4 +81,6 @@ class TickerParser:
         ticker: str,
         reference_date: str | date | datetime | None = None,
     ) -> ParsedTicker:
-        return parse_ticker(ticker=ticker, spec=self.spec, reference_date=reference_date)
+        return parse_ticker(
+            ticker=ticker, spec=self.spec, reference_date=reference_date
+        )

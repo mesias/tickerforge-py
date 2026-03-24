@@ -13,7 +13,9 @@ def test_resolve_nearest_weekday_to_day_for_ind():
     rule = spec.expiration_rules[contract.expiration_rule]
     calendar = get_calendar(contract.exchange)
 
-    expiration = resolve_expiration(contract=contract, year=2026, month=6, expiration_rule=rule, calendar=calendar)
+    expiration = resolve_expiration(
+        contract=contract, year=2026, month=6, expiration_rule=rule, calendar=calendar
+    )
     assert expiration == date(2026, 6, 17)
 
 
@@ -24,5 +26,7 @@ def test_resolve_first_business_day_for_dol():
     rule = spec.expiration_rules[contract.expiration_rule]
     calendar = get_calendar(contract.exchange)
 
-    expiration = resolve_expiration(contract=contract, year=2026, month=4, expiration_rule=rule, calendar=calendar)
+    expiration = resolve_expiration(
+        contract=contract, year=2026, month=4, expiration_rule=rule, calendar=calendar
+    )
     assert expiration == date(2026, 4, 1)

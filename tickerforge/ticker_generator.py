@@ -63,7 +63,9 @@ def generate_ticker_for_contract(
                 eligible_contracts.append((year, month))
 
     if not eligible_contracts:
-        raise ValueError(f"No eligible contract found for {contract.symbol} at {as_of_date}")
+        raise ValueError(
+            f"No eligible contract found for {contract.symbol} at {as_of_date}"
+        )
     if offset >= len(eligible_contracts):
         raise ValueError(f"Offset {offset} is out of range for {contract.symbol}")
 
@@ -75,6 +77,8 @@ class TickerForge:
     def __init__(self, spec_path: str | None = None) -> None:
         self.spec = load_spec(spec_path)
 
-    def generate(self, symbol: str, date: str | date | datetime, offset: int = 0) -> str:
+    def generate(
+        self, symbol: str, date: str | date | datetime, offset: int = 0
+    ) -> str:
         contract = self.spec.get_contract(symbol)
         return generate_ticker_for_contract(contract, date, self.spec, offset=offset)

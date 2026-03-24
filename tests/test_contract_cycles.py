@@ -20,6 +20,19 @@ def test_resolve_contract_months_for_common_cycles():
     quarterly = spec.contract_cycles["quarterly"]
     bimonthly_even = spec.contract_cycles["bimonthly_even"]
 
-    assert resolve_contract_months(monthly, 2026) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    assert resolve_contract_months(monthly, 2026) == [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+    ]
     assert resolve_contract_months(quarterly, 2026) == [3, 6, 9, 12]
     assert resolve_contract_months(bimonthly_even, 2026) == [2, 4, 6, 8, 10, 12]

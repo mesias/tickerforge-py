@@ -19,10 +19,47 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest",
+  "pre-commit",
+  "black",
+  "isort",
+  "ruff",
+  "mypy",
+  "types-PyYAML",
+  "types-python-dateutil",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.black]
+target-version = ["py310"]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+known_first_party = ["tickerforge"]
+
+[tool.ruff]
+target-version = "py310"
+src = ["tickerforge"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["tickerforge"]
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "exchange_calendars.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tickerforge_spec_data.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
 
 [tool.setuptools.packages.find]
 include = ["tickerforge*"]

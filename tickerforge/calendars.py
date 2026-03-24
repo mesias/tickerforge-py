@@ -4,7 +4,6 @@ from functools import lru_cache
 
 import exchange_calendars as xcals
 
-
 EXCHANGE_CALENDAR_ALIASES: dict[str, str] = {
     "B3": "BVMF",
     "CME": "CMES",

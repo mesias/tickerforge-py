@@ -5,7 +5,6 @@ from datetime import date
 
 from tickerforge.models import ContractSpec, ExpirationRule
 
-
 WEEKDAY_NAME_TO_NUMBER = {
     "monday": 0,
     "tuesday": 1,
@@ -62,9 +61,15 @@ def _resolve_nearest_weekday_to_day(
 ) -> date:
     weekday_number = WEEKDAY_NAME_TO_NUMBER[weekday_name.lower()]
     sessions = _month_sessions(calendar, year, month)
-    weekday_sessions = [session_day for session_day in sessions if session_day.weekday() == weekday_number]
+    weekday_sessions = [
+        session_day
+        for session_day in sessions
+        if session_day.weekday() == weekday_number
+    ]
     if not weekday_sessions:
-        raise ValueError(f"No sessions on weekday '{weekday_name}' for {year}-{month:02d}")
+        raise ValueError(
+            f"No sessions on weekday '{weekday_name}' for {year}-{month:02d}"
+        )
 
     last_day = monthrange(year, month)[1]
     target = date(year, month, min(day, last_day))
@@ -80,10 +85,15 @@ def _resolve_nth_weekday_of_month(
 ) -> date:
     weekday_number = WEEKDAY_NAME_TO_NUMBER[weekday_name.lower()]
     sessions = _month_sessions(calendar, year, month)
-    weekday_sessions = [session_day for session_day in sessions if session_day.weekday() == weekday_number]
+    weekday_sessions = [
+        session_day
+        for session_day in sessions
+        if session_day.weekday() == weekday_number
+    ]
     if n < 1 or n > len(weekday_sessions):
         raise ValueError(
-            f"Invalid nth weekday '{n}' for weekday '{weekday_name}' in {year}-{month:02d}"
+            f"Invalid nth weekday '{n}' for weekday '{weekday_name}' "
+            f"in {year}-{month:02d}"
         )
     return weekday_sessions[n - 1]
 
@@ -95,7 +105,8 @@ def resolve_expiration(
     expiration_rule: ExpirationRule,
     calendar,
 ) -> date:
-    del contract  # Expiration can be rule-based; kept for future product-specific logic.
+    # Expiration can be rule-based; kept for future product-specific logic.
+    del contract
 
     rule_type = expiration_rule.type
     if rule_type == "first_business_day":
@@ -131,6 +142,8 @@ def resolve_expiration(
             expiration_rule.n,
         )
     if rule_type == "schedule":
-        raise NotImplementedError("schedule expiration rules need external schedule data")
+        raise NotImplementedError(
+            "schedule expiration rules need external schedule data"
+        )
 
     raise ValueError(f"Unsupported expiration rule type: {rule_type}")

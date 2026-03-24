@@ -3,7 +3,6 @@ from __future__ import annotations
 from tickerforge.models import ContractCycle
 from tickerforge.month_codes import code_to_month
 
-
 BUILTIN_CYCLES: dict[str, list[str]] = {
     "monthly": ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"],
     "bimonthly_even": ["G", "J", "M", "Q", "V", "Z"],
@@ -11,7 +10,9 @@ BUILTIN_CYCLES: dict[str, list[str]] = {
 }
 
 
-def resolve_contract_months(contract_cycle: ContractCycle | str, year: int) -> list[int]:
+def resolve_contract_months(
+    contract_cycle: ContractCycle | str, year: int
+) -> list[int]:
     del year  # The cycle defines valid months; year is kept for a stable API.
 
     if isinstance(contract_cycle, ContractCycle):

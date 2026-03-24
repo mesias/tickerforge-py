@@ -5,7 +5,13 @@ from pathlib import Path
 
 import yaml
 
-from tickerforge.models import Asset, ContractCycle, ContractSpec, Exchange, ExpirationRule
+from tickerforge.models import (
+    Asset,
+    ContractCycle,
+    ContractSpec,
+    Exchange,
+    ExpirationRule,
+)
 
 
 @dataclass
@@ -67,7 +73,9 @@ def _load_exchanges(spec_root: Path) -> dict[str, Exchange]:
     return exchanges
 
 
-def _load_cycles_and_rules(spec_root: Path) -> tuple[dict[str, ContractCycle], dict[str, ExpirationRule]]:
+def _load_cycles_and_rules(
+    spec_root: Path,
+) -> tuple[dict[str, ContractCycle], dict[str, ExpirationRule]]:
     source_path = spec_root / "schemas" / "contract_cycles.yaml"
     raw = _read_yaml(source_path)
 
@@ -114,7 +122,9 @@ def _default_spec_path() -> Path:
 
 
 def load_spec(path: str | Path | None = None) -> SpecRepository:
-    spec_root = _default_spec_path() if path is None else Path(path).expanduser().resolve()
+    spec_root = (
+        _default_spec_path() if path is None else Path(path).expanduser().resolve()
+    )
     if not spec_root.exists():
         raise FileNotFoundError(f"Spec path does not exist: {spec_root}")
 
@@ -125,11 +135,13 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
     for contract in _load_contracts(spec_root):
         if contract.contract_cycle not in contract_cycles:
             raise ValueError(
-                f"Contract {contract.symbol} references unknown cycle '{contract.contract_cycle}'"
+                f"Contract {contract.symbol} references unknown cycle "
+                f"'{contract.contract_cycle}'"
             )
         if contract.expiration_rule not in expiration_rules:
             raise ValueError(
-                f"Contract {contract.symbol} references unknown rule '{contract.expiration_rule}'"
+                f"Contract {contract.symbol} references unknown rule "
+                f"'{contract.expiration_rule}'"
             )
         contracts[contract.symbol.upper()] = contract
 
