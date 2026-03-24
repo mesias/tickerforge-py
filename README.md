@@ -2,6 +2,8 @@
 
 [![codecov](https://codecov.io/gh/mesias/tickerforge-py/branch/main/graph/badge.svg)](https://codecov.io/gh/mesias/tickerforge-py)
 
+[![Repo Stats](https://github-readme-stats.vercel.app/api/pin/?username=mesias&repo=tickerforge-py&theme=dark)](https://github.com/mesias/tickerforge-py)
+
 Python library that loads [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) and
 generates/parses derivatives tickers.
 
