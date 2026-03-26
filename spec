@@ -1,1 +1,0 @@
-/home/amesias/dev/personal/tickerforge/tickerforge-spec/spec

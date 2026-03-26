@@ -134,6 +134,10 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Local checkout of tickerforge-spec (clone or copy into ./spec per README). Never commit
+# symlinks to absolute paths or machine-specific paths.
+/spec
+
 # Environments
 .env
 .envrc
