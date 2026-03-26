@@ -25,25 +25,24 @@ pip install "git+https://github.com/mesias/tickerforge-py.git"
 
 ## Usage
 
+By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package (installed from [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) via `pip`). Pass `spec_path` only to override.
+
 ```python
 from tickerforge import TickerForge, TickerParser
 
-forge = TickerForge(spec_path="spec")
+forge = TickerForge()
 ticker = forge.generate("IND", date="2025-04-01")
 print(ticker)  # e.g. INDM25
 
-parser = TickerParser(spec_path="spec")
+parser = TickerParser()
 parsed = parser.parse(ticker, reference_date="2025-04-01")
 print(parsed.symbol, parsed.year, parsed.month)
 ```
 
-You can also rely on the packaged spec data and omit `spec_path`:
+Custom spec directory:
 
 ```python
-from tickerforge import TickerForge
-
-forge = TickerForge()
-print(forge.generate("IND", date="2025-04-01"))
+forge = TickerForge(spec_path="/path/to/tickerforge-spec/spec")
 ```
 
 ## What this version supports
