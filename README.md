@@ -45,6 +45,33 @@ Custom spec directory:
 forge = TickerForge(spec_path="/path/to/tickerforge-spec/spec")
 ```
 
+### Contract-centric (tick, session, trading symbol)
+
+`load_spec()` returns a repository of contracts. Each `ContractSpec` includes tick size and (after load) regular session times and exchange timezone, plus helpers that use the **bundled default spec** unless you pass `spec=…`:
+
+```python
+from tickerforge import load_spec
+
+spec = load_spec()
+dol = spec.get_contract("DOL")
+
+dol.tick_size
+dol.regular_session_start_end()  # e.g. ("09:00", "18:30")
+dol.exchange_timezone
+# `dol.sessions` is an ordered list of `SessionSegment`; in YAML, sessions are a map keyed by
+# band name (`regular`, …) and each key is copied into `SessionSegment.name` at load time.
+
+# Front-month ticker — default bundled spec (omit `spec`)
+dol.trading_symbol_today()
+dol.trading_symbol_for("2026-03-15")
+
+# Same helpers with an explicit `SpecRepository` (e.g. custom `load_spec(path)`)
+dol.trading_symbol_today(spec=spec)
+dol.trading_symbol_for("2026-03-15", spec=spec)
+```
+
+Repeated calls with the default path reload the spec each time; for hot paths, pass `spec=` once.
+
 ## What this version supports
 
 - Loading exchanges, contract cycles, expiration rules, and futures contracts from YAML

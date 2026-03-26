@@ -147,6 +147,19 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
             )
         contracts[contract.symbol.upper()] = contract
 
+    for sym, contract in list(contracts.items()):
+        ex = exchanges.get(contract.exchange.upper())
+        if not ex:
+            continue
+        asset = ex.assets.get(sym)
+        sessions = list(asset.sessions) if asset else []
+        contracts[sym] = contract.model_copy(
+            update={
+                "sessions": sessions,
+                "exchange_timezone": ex.timezone,
+            }
+        )
+
     schedules = load_schedules(spec_root)
 
     from tickerforge.calendars import register_schedules
