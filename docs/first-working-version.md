@@ -48,5 +48,5 @@ Create a minimal, extensible Python library that reads `tickerforge-spec` and su
 
 - This first version intentionally focuses on futures contracts from `contracts/*/futures.yaml`.
 - `schedule` expiration rules (per-contract maturity calendars) are explicitly marked as not implemented yet.
-- Trading calendars are now spec-driven via rule-based YAML definitions in `spec/schedules/`. See `tickerforge-spec/docs/rule-based-exchange-schedule.md` for the full design.
+- Trading calendars are now spec-driven via rule-based YAML definitions in `spec/schedules/`. See `tickerforge-spec/docs/rule-based-exchange-schedule.md` for the canonical schedule format and `docs/spec-integration.md` for the Python-side integration notes.
 - The design keeps parsing/generation logic separate from calendar and loading concerns for easier evolution.
