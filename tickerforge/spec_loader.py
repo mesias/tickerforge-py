@@ -12,6 +12,7 @@ from tickerforge.models import (
     Exchange,
     ExpirationRule,
 )
+from tickerforge.schedule import ExchangeSchedule, load_schedules
 
 
 @dataclass
@@ -20,6 +21,7 @@ class SpecRepository:
     contracts: dict[str, ContractSpec]
     contract_cycles: dict[str, ContractCycle]
     expiration_rules: dict[str, ExpirationRule]
+    schedules: dict[str, ExchangeSchedule]
 
     def get_exchange(self, code: str) -> Exchange:
         key = code.upper()
@@ -145,9 +147,16 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
             )
         contracts[contract.symbol.upper()] = contract
 
+    schedules = load_schedules(spec_root)
+
+    from tickerforge.calendars import register_schedules
+
+    register_schedules(schedules)
+
     return SpecRepository(
         exchanges=exchanges,
         contracts=contracts,
         contract_cycles=contract_cycles,
         expiration_rules=expiration_rules,
+        schedules=schedules,
     )

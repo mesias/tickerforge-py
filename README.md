@@ -46,14 +46,17 @@ forge = TickerForge()
 print(forge.generate("IND", date="2025-04-01"))
 ```
 
-## What this first version supports
+## What this version supports
 
 - Loading exchanges, contract cycles, expiration rules, and futures contracts from YAML
 - Validating loaded structures with Pydantic models
 - Resolving contract months by cycle
-- Resolving expiration dates with exchange calendars
+- Resolving expiration dates with spec-driven exchange calendars
+- Rule-based holiday definitions (fixed dates, Easter offsets, nth-weekday) loaded from `spec/schedules/`
+- Fallback to `exchange_calendars` when no spec schedule exists
 - Generating futures tickers from `{symbol}{month_code}{yy}`-style templates
 - Parsing tickers back to structured contract information
+- Golden calendar validation for B3 WIN/IND/DOL (2023--2026)
 
 ## Run tests
 
