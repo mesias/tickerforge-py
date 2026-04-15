@@ -9,7 +9,7 @@ from tickerforge import TickerForge, TickerParser, load_spec, parse_ticker
 
 def test_parse_ind_ticker():
     spec_path = Path(__file__).resolve().parents[1] / "spec"
-    parser = TickerParser(spec_path=str(spec_path))
+    parser = TickerParser(spec_path=spec_path)
 
     parsed = parser.parse("INDM26", reference_date="2026-01-01")
     assert parsed.symbol == "IND"
@@ -21,7 +21,7 @@ def test_parse_ind_ticker():
 def test_generate_and_parse_round_trip():
     spec_path = Path(__file__).resolve().parents[1] / "spec"
     forge = TickerForge(spec_path=str(spec_path))
-    parser = TickerParser(spec_path=str(spec_path))
+    parser = TickerParser(spec_path=spec_path)
 
     generated = forge.generate("IND", date="2026-06-01")
     parsed = parser.parse(generated, reference_date="2026-06-01")
@@ -34,7 +34,7 @@ def test_generate_and_parse_round_trip():
 
 def test_parse_invalid_ticker_raises_error():
     spec_path = Path(__file__).resolve().parents[1] / "spec"
-    parser = TickerParser(spec_path=str(spec_path))
+    parser = TickerParser(spec_path=spec_path)
 
     with pytest.raises(ValueError):
         parser.parse("INVALID")
@@ -73,7 +73,9 @@ def test_parse_ticker_omitted_spec_kwarg_matches_explicit():
 
 def test_parse_ticker_load_spec_called_when_spec_is_none():
     real_spec = load_spec()
-    with patch("tickerforge.ticker_parser.load_spec", return_value=real_spec) as mock_load:
+    with patch(
+        "tickerforge.ticker_parser.load_spec", return_value=real_spec
+    ) as mock_load:
         parsed = parse_ticker("INDM26", reference_date="2026-01-01")
         mock_load.assert_called_once_with()
     assert parsed.symbol == "IND"
@@ -179,7 +181,6 @@ def test_builder_build_default_spec():
 
 
 def test_builder_build_custom_spec():
-    spec = load_spec()
     parser = TickerParser.builder().build()
     parsed = parser.parse("DOLK26")
     assert parsed.symbol == "DOL"
@@ -200,12 +201,7 @@ def test_builder_parse_full_ticker():
 
 
 def test_builder_parse_root_with_date():
-    parsed = (
-        TickerParser.builder()
-        .ticker("IND")
-        .reference_date("2026-06-01")
-        .parse()
-    )
+    parsed = TickerParser.builder().ticker("IND").reference_date("2026-06-01").parse()
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
     assert 1 <= parsed.month <= 12
@@ -218,12 +214,7 @@ def test_builder_parse_root_without_date():
 
 
 def test_builder_parse_custom_spec_with_date():
-    parsed = (
-        TickerParser.builder()
-        .ticker("IND")
-        .reference_date("2026-06-01")
-        .parse()
-    )
+    parsed = TickerParser.builder().ticker("IND").reference_date("2026-06-01").parse()
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
 
@@ -235,10 +226,7 @@ def test_builder_parse_unknown_errors():
 
 def test_builder_parse_full_ignores_date():
     parsed = (
-        TickerParser.builder()
-        .ticker("INDM26")
-        .reference_date("1990-01-01")
-        .parse()
+        TickerParser.builder().ticker("INDM26").reference_date("1990-01-01").parse()
     )
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
@@ -246,12 +234,7 @@ def test_builder_parse_full_ignores_date():
 
 
 def test_builder_date_before_ticker():
-    parsed = (
-        TickerParser.builder()
-        .reference_date("2026-06-01")
-        .ticker("IND")
-        .parse()
-    )
+    parsed = TickerParser.builder().reference_date("2026-06-01").ticker("IND").parse()
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
 
@@ -276,12 +259,7 @@ def test_builder_build_with_spec():
 
 
 def test_builder_parse_with_spec():
-    parsed = (
-        TickerParser.builder()
-        .spec(_default_spec_dir())
-        .ticker("WINM26")
-        .parse()
-    )
+    parsed = TickerParser.builder().spec(_default_spec_dir()).ticker("WINM26").parse()
     assert parsed.symbol == "WIN"
     assert parsed.year == 2026
     assert parsed.month == 6
@@ -324,7 +302,9 @@ def test_parse_full_ticker_with_date_warns():
 
 def test_builder_parse_full_ticker_with_date_warns():
     with pytest.warns(UserWarning, match="reference_date is ignored"):
-        parsed = TickerParser.builder().ticker("WINQ25").reference_date("2030-01-01").parse()
+        parsed = (
+            TickerParser.builder().ticker("WINQ25").reference_date("2030-01-01").parse()
+        )
     assert parsed.symbol == "WIN"
     assert parsed.year == 2025
     assert parsed.month == 8
@@ -367,12 +347,7 @@ def test_root_symbol_without_date_has_session_info():
 
 
 def test_builder_root_symbol_session_info():
-    parsed = (
-        TickerParser.builder()
-        .ticker("DOL")
-        .reference_date("2026-04-15")
-        .parse()
-    )
+    parsed = TickerParser.builder().ticker("DOL").reference_date("2026-04-15").parse()
     assert parsed.reference_date == date(2026, 4, 15)
     assert parsed.is_trading_session is True
 

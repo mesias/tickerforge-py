@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import warnings
 from datetime import date, datetime
+from pathlib import Path
 
 from dateutil import parser as date_parser
 from pydantic import BaseModel
@@ -44,9 +45,7 @@ def _pattern_for_contract(contract: ContractSpec) -> re.Pattern[str]:
     return re.compile(f"^{pattern}$")
 
 
-def _parse_full_ticker(
-    ticker: str, spec: SpecRepository
-) -> ParsedTicker | None:
+def _parse_full_ticker(ticker: str, spec: SpecRepository) -> ParsedTicker | None:
     """Try to match *ticker* against every contract pattern.
 
     Year is derived directly from the 2-digit code (``2000 + yy``);
@@ -108,10 +107,12 @@ def _resolve_root_symbol(
     full_ticker = generate_ticker_for_contract(contract, ref_date, spec)
     result = _parse_full_ticker(full_ticker, spec)
     if result is not None:
-        result = result.model_copy(update={
-            "reference_date": ref_date,
-            "is_trading_session": _is_trading_session(contract.exchange, ref_date),
-        })
+        result = result.model_copy(
+            update={
+                "reference_date": ref_date,
+                "is_trading_session": _is_trading_session(contract.exchange, ref_date),
+            }
+        )
     return result
 
 
@@ -145,13 +146,13 @@ class _TickerParserBuilderBase:
     has been set."""
 
     def __init__(self) -> None:
-        self._spec_path: str | None = None
+        self._spec_path: Path | None = None
         self._ticker: str | None = None
         self._reference_date: str | date | datetime | None = None
 
     def spec_path(self, path: str) -> _TickerParserBuilderBase:
         """Set a custom spec directory.  When omitted the bundled default is used."""
-        self._spec_path = path
+        self._spec_path = Path(path)
         return self
 
     def spec(self, path: str) -> _TickerParserBuilderBase:
@@ -179,18 +180,18 @@ class _TickerParserBuilderWithTicker(_TickerParserBuilderBase):
         return self
 
     def spec_path(self, path: str) -> _TickerParserBuilderWithTicker:
-        self._spec_path = path
-        return self  # type: ignore[return-value]
+        self._spec_path = Path(path)
+        return self
 
     def spec(self, path: str) -> _TickerParserBuilderWithTicker:
         """Set a custom spec directory (alias for :meth:`spec_path`)."""
-        return self.spec_path(path)  # type: ignore[return-value]
+        return self.spec_path(path)
 
     def reference_date(
         self, ref_date: str | date | datetime
     ) -> _TickerParserBuilderWithTicker:
         self._reference_date = ref_date
-        return self  # type: ignore[return-value]
+        return self
 
     def parse(self) -> ParsedTicker:
         """One-shot: load spec, parse the ticker, and return the result."""
@@ -215,18 +216,18 @@ class _TickerParserBuilderNoTicker(_TickerParserBuilderBase):
         return builder
 
     def spec_path(self, path: str) -> _TickerParserBuilderNoTicker:
-        self._spec_path = path
-        return self  # type: ignore[return-value]
+        self._spec_path = Path(path)
+        return self
 
     def spec(self, path: str) -> _TickerParserBuilderNoTicker:
         """Set a custom spec directory (alias for :meth:`spec_path`)."""
-        return self.spec_path(path)  # type: ignore[return-value]
+        return self.spec_path(path)
 
     def reference_date(
         self, ref_date: str | date | datetime
     ) -> _TickerParserBuilderNoTicker:
         self._reference_date = ref_date
-        return self  # type: ignore[return-value]
+        return self
 
 
 class TickerParser:
@@ -236,7 +237,7 @@ class TickerParser:
     for fluent configuration.
     """
 
-    def __init__(self, spec_path: str | None = None) -> None:
+    def __init__(self, spec_path: str | Path | None = None) -> None:
         self.spec = load_spec(spec_path)
 
     @staticmethod
