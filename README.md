@@ -27,16 +27,14 @@ pip install "git+https://github.com/mesias/tickerforge-py.git"
 
 By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package (installed from [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) via `pip`). Pass `spec_path` only to override.
 
+### Generating tickers
+
 ```python
-from tickerforge import TickerForge, TickerParser
+from tickerforge import TickerForge
 
 forge = TickerForge()
 ticker = forge.generate("IND", date="2025-04-01")
 print(ticker)  # e.g. INDM25
-
-parser = TickerParser()
-parsed = parser.parse(ticker, reference_date="2025-04-01")
-print(parsed.symbol, parsed.year, parsed.month)
 ```
 
 Custom spec directory:
@@ -44,6 +42,70 @@ Custom spec directory:
 ```python
 forge = TickerForge(spec_path="/path/to/tickerforge-spec/spec")
 ```
+
+### Parsing tickers (smart parsing)
+
+The parser accepts **full tickers** (`INDM26`) or **root symbols** (`IND`).
+
+Full tickers derive year/month directly from the string — no `reference_date` required.
+Root symbols resolve the front-month contract via the generator; `reference_date` defaults to today when omitted.
+
+```python
+from tickerforge import TickerParser, parse_ticker
+
+# Full ticker — year and month come from the ticker itself
+parsed = parse_ticker("INDM26")
+print(parsed.symbol, parsed.year, parsed.month)  # IND 2026 6
+print(parsed.tick_size, parsed.lot_size)          # 5.0 1.0
+
+# Root symbol — resolves front-month for today
+parsed = parse_ticker("IND")
+
+# Root symbol — resolves front-month for a specific date
+parsed = parse_ticker("IND", reference_date="2026-06-01")
+
+# Using TickerParser (reuses a loaded spec)
+parser = TickerParser()
+parsed = parser.parse("DOLK26")
+parsed = parser.parse("DOL", reference_date="2026-04-15")
+```
+
+### Builder pattern
+
+`TickerParser.builder()` provides a fluent API for configuration and one-shot parsing:
+
+```python
+from tickerforge import TickerParser
+
+# Build a reusable parser (default spec)
+parser = TickerParser.builder().build()
+parsed = parser.parse("INDM26")
+
+# Build a reusable parser (custom spec)
+parser = TickerParser.builder().spec_path("/path/to/spec").build()
+
+# One-shot parse — full ticker
+parsed = TickerParser.builder().ticker("INDM26").parse()
+
+# One-shot parse — root symbol with date
+parsed = (
+    TickerParser.builder()
+    .ticker("IND")
+    .reference_date("2026-06-01")
+    .parse()
+)
+
+# One-shot parse — custom spec + date
+parsed = (
+    TickerParser.builder()
+    .spec_path("/path/to/spec")
+    .ticker("IND")
+    .reference_date("2026-06-01")
+    .parse()
+)
+```
+
+The builder enforces that `parse()` is only available after `ticker()` has been called.
 
 ### Contract-centric (tick, session, trading symbol)
 
