@@ -63,6 +63,9 @@ ignore_missing_imports = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.version]
 path = "VERSION"
 pattern = "^(?P<version>\\S+)"
