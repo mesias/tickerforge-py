@@ -36,6 +36,8 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     environment: release
+    permissions:
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
