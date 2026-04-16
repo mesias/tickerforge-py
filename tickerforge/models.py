@@ -99,6 +99,29 @@ class ExpirationRule(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class OptionSpec(BaseModel):
+    """Specification for an option contract loaded from ``options:`` blocks in spec YAML."""
+
+    model_config = ConfigDict(extra="allow")
+
+    type: str
+    symbol: str | None = None
+    exchange: str
+    option_style: str
+    ticker_format: str
+    contract_multiplier: float | None = None
+    tick_size: float | None = None
+    currency: str | None = None
+    aliases: list[str] = Field(default_factory=list)
+    call_month_codes: list[str] | None = None
+    put_month_codes: list[str] | None = None
+    option_type_codes: dict[str, str] | None = None
+    contract_cycle: str | None = None
+    expiration_rule: str
+    underlyings: list[str] | None = None
+    description: str | None = None
+
+
 class ContractSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 

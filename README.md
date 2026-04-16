@@ -43,9 +43,9 @@ Custom spec directory:
 forge = TickerForge(spec_path="/path/to/tickerforge-spec/spec")
 ```
 
-### Parsing tickers (smart parsing)
+### Parsing tickers — futures and options (smart parsing)
 
-The parser accepts **full tickers** (`INDM26`) or **root symbols** (`IND`).
+`parse_ticker` accepts **full tickers** (`INDM26`, `PETRA30`, `IBOVK26C120000`) or **root symbols** (`IND`). It parses **both futures and options** and returns a unified `ParsedTicker`.
 
 Full tickers derive year/month directly from the string — no `reference_date` required.
 Root symbols resolve the front-month contract via the generator; `reference_date` defaults to today when omitted.
@@ -53,21 +53,51 @@ Root symbols resolve the front-month contract via the generator; `reference_date
 ```python
 from tickerforge import TickerParser, parse_ticker
 
-# Full ticker — year and month come from the ticker itself
+# Futures — full ticker
 parsed = parse_ticker("INDM26")
 print(parsed.symbol, parsed.year, parsed.month)  # IND 2026 6
 print(parsed.tick_size, parsed.lot_size)          # 5.0 1.0
+print(parsed.asset_type)                          # "future"
 
-# Root symbol — resolves front-month for today
+# Futures — root symbol
 parsed = parse_ticker("IND")
-
-# Root symbol — resolves front-month for a specific date
 parsed = parse_ticker("IND", reference_date="2026-06-01")
+
+# CME futures
+parsed = parse_ticker("ESM26")
+print(parsed.symbol, parsed.exchange)  # ES CME
+
+# B3 equity option: equity_root("PETR4") = "PETR" → "PETRA30"
+parsed = parse_ticker("PETRA30")
+print(parsed.asset_type)      # "option"
+print(parsed.option_type)     # "call"
+print(parsed.underlying)      # "PETR4"
+print(parsed.month)           # 1  (A = January)
+print(parsed.strike)          # "30"
+print(parsed.year)            # None (equity options have no year)
+print(parsed.exchange)        # "B3"
+
+# B3 index option
+parsed = parse_ticker("IBOVK26C120000")
+print(parsed.underlying, parsed.month, parsed.year, parsed.strike)  # IBOV 5 2026 120000
+
+# B3 dollar option
+parsed = parse_ticker("DOLK26C5000")
+print(parsed.option_type, parsed.strike)  # call 5000
+
+# DOL future vs DOL option — no ambiguity
+parse_ticker("DOLK26")      # → future
+parse_ticker("DOLK26C5000") # → option
+
+# Exchange filter
+parsed = parse_ticker("ESM26", exchange="CME")
+# AmbiguousTickerError raised if a ticker matches multiple markets;
+# pass exchange= to disambiguate
 
 # Using TickerParser (reuses a loaded spec)
 parser = TickerParser()
 parsed = parser.parse("DOLK26")
-parsed = parser.parse("DOL", reference_date="2026-04-15")
+parsed = parser.parse("DOLK26C5000", exchange="B3")
 ```
 
 ### Builder pattern
@@ -86,6 +116,9 @@ parser = TickerParser.builder().spec_path("/path/to/spec").build()
 
 # One-shot parse — full ticker
 parsed = TickerParser.builder().ticker("INDM26").parse()
+
+# One-shot parse — option with exchange filter
+parsed = TickerParser.builder().ticker("PETRA30").exchange("B3").parse()
 
 # One-shot parse — root symbol with date
 parsed = (
@@ -136,14 +169,16 @@ Repeated calls with the default path reload the spec each time; for hot paths, p
 
 ## What this version supports
 
-- Loading exchanges, contract cycles, expiration rules, and futures contracts from YAML
+- Loading exchanges, contract cycles, expiration rules, futures and **options** from all `contracts/**/*.yaml` (B3, CME, …)
 - Validating loaded structures with Pydantic models
 - Resolving contract months by cycle
 - Resolving expiration dates with spec-driven exchange calendars
 - Rule-based holiday definitions (fixed dates, Easter offsets, nth-weekday) loaded from `spec/schedules/`
 - Fallback to `exchange_calendars` when no spec schedule exists
 - Generating futures tickers from `{symbol}{month_code}{yy}`-style templates
-- Parsing tickers back to structured contract information
+- **Multi-asset parsing**: futures and options (B3 equity, index, dollar, interest-rate; CME futures) via a single `parse_ticker` call
+- `AmbiguousTickerError` when a ticker matches multiple markets; `exchange=` parameter to disambiguate
+- `ParsedTicker.asset_type`, `option_type`, `strike`, `underlying`, `exchange` fields for options
 - Golden calendar validation for B3 WIN/IND/DOL (2023--2026)
 
 ## Run tests

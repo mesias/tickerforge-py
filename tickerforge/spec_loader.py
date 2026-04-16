@@ -11,6 +11,7 @@ from tickerforge.models import (
     ContractSpec,
     Exchange,
     ExpirationRule,
+    OptionSpec,
 )
 from tickerforge.schedule import ExchangeSchedule, load_schedules
 
@@ -19,6 +20,7 @@ from tickerforge.schedule import ExchangeSchedule, load_schedules
 class SpecRepository:
     exchanges: dict[str, Exchange]
     contracts: dict[str, ContractSpec]
+    options: list[OptionSpec]
     contract_cycles: dict[str, ContractCycle]
     expiration_rules: dict[str, ExpirationRule]
     schedules: dict[str, ExchangeSchedule]
@@ -111,6 +113,23 @@ def _load_contracts(spec_root: Path) -> list[ContractSpec]:
     return contracts
 
 
+def _load_options(spec_root: Path) -> list[OptionSpec]:
+    options: list[OptionSpec] = []
+    contracts_dir = spec_root / "contracts"
+    for yaml_path in sorted(contracts_dir.glob("**/*.yaml")):
+        raw = _read_yaml(yaml_path)
+        items = raw.get("options")
+        if items is None:
+            continue
+        if not isinstance(items, list):
+            raise ValueError(f"Expected list under 'options' in {yaml_path}")
+        for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f"Invalid option item in {yaml_path}")
+            options.append(OptionSpec(**item))
+    return options
+
+
 def _default_spec_path() -> Path:
     try:
         from tickerforge_spec_data import get_spec_root
@@ -160,6 +179,8 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
             }
         )
 
+    options = _load_options(spec_root)
+
     schedules = load_schedules(spec_root)
 
     from tickerforge.calendars import register_schedules
@@ -169,6 +190,7 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
     return SpecRepository(
         exchanges=exchanges,
         contracts=contracts,
+        options=options,
         contract_cycles=contract_cycles,
         expiration_rules=expiration_rules,
         schedules=schedules,
