@@ -9,6 +9,7 @@ from tickerforge.models import (
     Asset,
     ContractCycle,
     ContractSpec,
+    EquitySpec,
     Exchange,
     ExpirationRule,
     OptionSpec,
@@ -21,6 +22,7 @@ class SpecRepository:
     exchanges: dict[str, Exchange]
     contracts: dict[str, ContractSpec]
     options: list[OptionSpec]
+    equities: dict[str, EquitySpec]
     contract_cycles: dict[str, ContractCycle]
     expiration_rules: dict[str, ExpirationRule]
     schedules: dict[str, ExchangeSchedule]
@@ -130,6 +132,25 @@ def _load_options(spec_root: Path) -> list[OptionSpec]:
     return options
 
 
+def _load_equities(spec_root: Path) -> list[EquitySpec]:
+    equities: list[EquitySpec] = []
+    equities_dir = spec_root / "equities"
+    if not equities_dir.exists():
+        return []
+    for yaml_path in sorted(equities_dir.glob("**/*.yaml")):
+        raw = _read_yaml(yaml_path)
+        items = raw.get("equities")
+        if items is None:
+            continue
+        if not isinstance(items, list):
+            raise ValueError(f"Expected list under 'equities' in {yaml_path}")
+        for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f"Invalid equity item in {yaml_path}")
+            equities.append(EquitySpec(**item))
+    return equities
+
+
 def _default_spec_path() -> Path:
     try:
         from tickerforge_spec_data import get_spec_root
@@ -183,6 +204,17 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
 
     schedules = load_schedules(spec_root)
 
+    equities_list = _load_equities(spec_root)
+    equities: dict[str, EquitySpec] = {}
+    for eq in equities_list:
+        ex = exchanges.get(eq.exchange.upper())
+        eq = eq.model_copy(
+            update={
+                "exchange_timezone": ex.timezone if ex else None,
+            }
+        )
+        equities[eq.symbol.upper()] = eq
+
     from tickerforge.calendars import register_schedules
 
     register_schedules(schedules)
@@ -191,6 +223,7 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
         exchanges=exchanges,
         contracts=contracts,
         options=options,
+        equities=equities,
         contract_cycles=contract_cycles,
         expiration_rules=expiration_rules,
         schedules=schedules,
