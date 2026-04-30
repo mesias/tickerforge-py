@@ -142,12 +142,19 @@ The builder enforces that `parse()` is only available after `ticker()` has been 
 
 ### Contract-centric (tick, session, trading symbol)
 
-`load_spec()` returns a repository of contracts. Each `ContractSpec` includes tick size and (after load) regular session times and exchange timezone, plus helpers that use the **bundled default spec** unless you pass `spec=…`:
+`load_spec()` returns a repository of contracts and equities. Each `ContractSpec` includes tick size and (after load) regular session times and exchange timezone, plus helpers that use the **bundled default spec** unless you pass `spec=…`:
 
 ```python
 from tickerforge import load_spec
 
 spec = load_spec()
+
+# Loading a cash equity
+petr4 = spec.equities["PETR4"]
+petr4.contract_multiplier        # 1.0
+petr4.regular_session().start    # "10:00"
+
+# Loading a future
 dol = spec.get_contract("DOL")
 
 dol.tick_size
@@ -169,7 +176,7 @@ Repeated calls with the default path reload the spec each time; for hot paths, p
 
 ## What this version supports
 
-- Loading exchanges, contract cycles, expiration rules, futures and **options** from all `contracts/**/*.yaml` (B3, CME, …)
+- Loading exchanges, contract cycles, expiration rules, futures, **options**, and **equities** from all `contracts/**/*.yaml` and `equities/**/*.yaml` (B3, CME, …)
 - Validating loaded structures with Pydantic models
 - Resolving contract months by cycle
 - Resolving expiration dates with spec-driven exchange calendars
