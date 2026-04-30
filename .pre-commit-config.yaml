@@ -27,3 +27,12 @@ repos:
           - types-python-dateutil
           - exchange-calendars
           - pytest
+
+  - repo: local
+    hooks:
+      - id: pytest-coverage
+        name: pytest coverage
+        entry: .venv/bin/python -m pytest --cov=tickerforge --cov-fail-under=80
+        language: system
+        types: [python]
+        pass_filenames: false

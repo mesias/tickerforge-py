@@ -54,7 +54,7 @@ def test_load_equities_from_spec():
     # Load using the default bundled spec path, which should now have spec/equities/b3.yaml
     # We need to make sure we point to our local dev directory, but load_spec will use tickerforge_spec_data if installed.
     # We will pass the local path explicitly for testing.
-    local_spec = Path(__file__).parent.parent.parent / "tickerforge-spec" / "spec"
+    local_spec = Path(__file__).parent.parent / "spec"
     if not local_spec.exists():
         pytest.skip("Local spec path not found")
 
@@ -66,3 +66,41 @@ def test_load_equities_from_spec():
     assert petr4.type == "equity"
     assert petr4.regular_session().start == "10:00"
     assert petr4.exchange_timezone == "America/Sao_Paulo"
+
+
+def test_load_equities_edge_cases(tmp_path):
+    import yaml
+
+    from tickerforge.spec_loader import _load_equities
+
+    eq_dir = tmp_path / "equities"
+    eq_dir.mkdir()
+
+    # 1. No equities dir
+    assert _load_equities(tmp_path / "fake") == []
+
+    # 2. No equities key
+    f1 = eq_dir / "1.yaml"
+    f1.write_text(yaml.dump({"other": []}))
+    assert _load_equities(tmp_path) == []
+
+    # 3. Equities is not a list
+    f2 = eq_dir / "2.yaml"
+    f2.write_text(yaml.dump({"equities": "not a list"}))
+    with pytest.raises(ValueError, match="Expected list under 'equities'"):
+        _load_equities(tmp_path)
+    f2.unlink()
+
+    # 4. Equity item is not a dict
+    f3 = eq_dir / "3.yaml"
+    f3.write_text(yaml.dump({"equities": ["not a dict"]}))
+    with pytest.raises(ValueError, match="Invalid equity item"):
+        _load_equities(tmp_path)
+
+
+def test_equity_spec_sessions_not_dict():
+    # Covers model_validator where data is not a dict
+    from tickerforge.models import EquitySpec
+
+    with pytest.raises(ValueError):
+        EquitySpec.model_validate("not a dict")
