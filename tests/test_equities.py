@@ -12,9 +12,11 @@ def test_equity_spec_model():
         "exchange": "B3",
         "type": "equity",
         "sessions": {"regular": {"start": "10:00", "end": "17:00"}},
+        "contract_multiplier": 100.00,
     }
     eq = EquitySpec(**data)
     assert eq.symbol == "PETR4"
+    assert eq.lot_size == 100.00
     assert eq.is_unique_session()
     assert eq.regular_session().start == "10:00"
     assert eq.default_session().end == "17:00"
@@ -64,6 +66,7 @@ def test_load_equities_from_spec():
     petr4 = repo.equities["PETR4"]
     assert petr4.exchange == "B3"
     assert petr4.type == "equity"
+    assert petr4.lot_size == 100.00
     assert petr4.regular_session().start == "10:00"
     assert petr4.exchange_timezone == "America/Sao_Paulo"
 

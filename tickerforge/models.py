@@ -102,14 +102,14 @@ class ExpirationRule(BaseModel):
 class OptionSpec(BaseModel):
     """Specification for an option contract loaded from ``options:`` blocks in spec YAML."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     type: str
     symbol: str | None = None
     exchange: str
     option_style: str
     ticker_format: str
-    contract_multiplier: float | None = None
+    lot_size: float | None = Field(None, alias="contract_multiplier")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)
@@ -123,7 +123,7 @@ class OptionSpec(BaseModel):
 
 
 class EquitySpec(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     symbol: str
     exchange: str
@@ -131,7 +131,7 @@ class EquitySpec(BaseModel):
     description: str | None = None
     currency: str | None = None
     tick_size: float | None = None
-    contract_multiplier: float | None = None
+    lot_size: float | None = Field(None, alias="contract_multiplier")
     aliases: list[str] = Field(default_factory=list)
     sessions: list[SessionSegment] = Field(default_factory=list)
     exchange_timezone: str | None = None
@@ -173,7 +173,7 @@ class EquitySpec(BaseModel):
 
 
 class ContractSpec(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     symbol: str
     exchange: str
@@ -181,7 +181,7 @@ class ContractSpec(BaseModel):
     ticker_format: str = "{symbol}{month_code}{yy}"
     contract_cycle: str
     expiration_rule: str
-    contract_multiplier: float | None = None
+    lot_size: float | None = Field(None, alias="contract_multiplier")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)
