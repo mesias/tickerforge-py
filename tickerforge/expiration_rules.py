@@ -108,6 +108,81 @@ def _resolve_nth_weekday_of_month(
     return weekday_sessions[n - 1]
 
 
+def _resolve_last_weekday_of_month(
+    calendar,
+    year: int,
+    month: int,
+    weekday_name: str,
+) -> date:
+    weekday_number = WEEKDAY_NAME_TO_NUMBER[weekday_name.lower()]
+    sessions = _month_sessions(calendar, year, month)
+    weekday_sessions = [
+        session_day
+        for session_day in sessions
+        if session_day.weekday() == weekday_number
+    ]
+    if not weekday_sessions:
+        raise ValueError(
+            f"No sessions on weekday '{weekday_name}' for {year}-{month:02d}"
+        )
+    return weekday_sessions[-1]
+
+
+def _resolve_second_business_day_prior_to_month(
+    calendar,
+    year: int,
+    month: int,
+) -> date:
+    prev_year = year
+    prev_month = month - 1
+    if prev_month == 0:
+        prev_month = 12
+        prev_year -= 1
+    sessions = _month_sessions(calendar, prev_year, prev_month)
+    if len(sessions) < 2:
+        raise ValueError(
+            f"Not enough sessions in preceding month for {year}-{month:02d}"
+        )
+    return sessions[-2]
+
+
+def _resolve_business_day_prior_to_day_of_preceding_month(
+    calendar,
+    year: int,
+    month: int,
+    day: int,
+) -> date:
+    prev_year = year
+    prev_month = month - 1
+    if prev_month == 0:
+        prev_month = 12
+        prev_year -= 1
+    from calendar import monthrange
+
+    last_day = monthrange(prev_year, prev_month)[1]
+    target = date(prev_year, prev_month, min(day, last_day))
+    sessions = [
+        s for s in _month_sessions(calendar, prev_year, prev_month) if s < target
+    ]
+    if not sessions:
+        raise ValueError("No sessions found before target day in preceding month")
+    return sessions[-1]
+
+
+def _resolve_nth_business_day_from_end(
+    calendar,
+    year: int,
+    month: int,
+    n: int,
+) -> date:
+    sessions = _month_sessions(calendar, year, month)
+    if n < 1 or n > len(sessions):
+        raise ValueError(
+            f"Invalid nth business day from end '{n}' for {year}-{month:02d}"
+        )
+    return sessions[-n]
+
+
 def resolve_expiration(
     contract: ContractSpec,
     year: int,
@@ -149,6 +224,41 @@ def resolve_expiration(
             year,
             month,
             expiration_rule.weekday,
+            expiration_rule.n,
+        )
+    if rule_type == "last_weekday_of_month":
+        if expiration_rule.weekday is None:
+            raise ValueError("last_weekday_of_month rule requires 'weekday'")
+        return _resolve_last_weekday_of_month(
+            calendar,
+            year,
+            month,
+            expiration_rule.weekday,
+        )
+    if rule_type == "second_business_day_prior_to_month":
+        return _resolve_second_business_day_prior_to_month(
+            calendar,
+            year,
+            month,
+        )
+    if rule_type == "business_day_prior_to_day_of_preceding_month":
+        if expiration_rule.day is None:
+            raise ValueError(
+                "business_day_prior_to_day_of_preceding_month rule requires 'day'"
+            )
+        return _resolve_business_day_prior_to_day_of_preceding_month(
+            calendar,
+            year,
+            month,
+            expiration_rule.day,
+        )
+    if rule_type == "nth_business_day_from_end":
+        if expiration_rule.n is None:
+            raise ValueError("nth_business_day_from_end rule requires 'n'")
+        return _resolve_nth_business_day_from_end(
+            calendar,
+            year,
+            month,
             expiration_rule.n,
         )
     if rule_type == "schedule":
