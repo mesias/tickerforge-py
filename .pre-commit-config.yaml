@@ -26,6 +26,7 @@ repos:
           - python-dateutil
           - types-python-dateutil
           - exchange-calendars
+          - numpy<2
           - pytest
 
   - repo: local
