@@ -31,6 +31,7 @@ jobs:
         run: |
           BRANCH="${{ github.head_ref || github.ref_name }}"
           git clone --depth 1 --branch "$BRANCH" https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
+          git clone --depth 1 --branch develop https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
           git clone --depth 1 --branch main https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
           cp -r /tmp/tickerforge-spec/spec .
 
@@ -64,6 +65,7 @@ jobs:
         run: |
           BRANCH="${{ github.head_ref || github.ref_name }}"
           git clone --depth 1 --branch "$BRANCH" https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
+          git clone --depth 1 --branch develop https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
           git clone --depth 1 --branch main https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
           cp -r /tmp/tickerforge-spec/spec .
 
