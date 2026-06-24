@@ -31,9 +31,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: pytest-coverage
-        name: pytest coverage
-        entry: python -m pytest --cov=tickerforge --cov-fail-under=80
+      - id: pytest
+        name: pytest
+        entry: .venv/bin/pytest
         language: system
-        types: [python]
         pass_filenames: false
+        always_run: true

@@ -56,7 +56,7 @@ from tickerforge import TickerParser, parse_ticker
 # Futures — full ticker
 parsed = parse_ticker("INDM26")
 print(parsed.symbol, parsed.year, parsed.month)  # IND 2026 6
-print(parsed.tick_size, parsed.lot_size)          # 5.0 1.0
+print(parsed.tick_size, parsed.ctr_std)          # 5.0 5
 print(parsed.asset_type)                          # "future"
 
 # Futures — root symbol
