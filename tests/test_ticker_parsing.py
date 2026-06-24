@@ -54,7 +54,8 @@ def test_parse_ticker_includes_tick_size_and_lot_size():
     contract = spec.get_contract("IND")
     parsed = parse_ticker("INDM26", spec, reference_date="2026-01-01")
     assert parsed.tick_size == contract.tick_size
-    assert parsed.lot_size == contract.lot_size
+    assert parsed.ctr_std == contract.ctr_std
+    assert parsed.ctr_size == contract.ctr_size
 
 
 def test_parse_ticker_without_spec_matches_explicit_spec():
@@ -367,50 +368,59 @@ def test_parse_new_b3_futures():
     assert parsed_etr.symbol == "ETR"
     assert parsed_etr.year == 2026
     assert parsed_etr.month == 1
-    assert parsed_etr.lot_size == 1.0
+    assert parsed_etr.ctr_std == 1
+    assert parsed_etr.ctr_size == 0.1
 
     # 2. SOL (Solana, last Friday of Jan 2026 -> 2026-01-30)
     parsed_sol = parser.parse("SOLF26")
     assert parsed_sol.symbol == "SOL"
-    assert parsed_sol.lot_size == 1.0
+    assert parsed_sol.ctr_std == 5
+    assert parsed_sol.ctr_size == 5.0
 
     # 3. SJC (Soybean CBOT, 2nd business day prior to March 2026 -> 2026-02-26)
     parsed_sjc = parser.parse("SJCH26")
     assert parsed_sjc.symbol == "SJC"
-    assert parsed_sjc.lot_size == 1.0
+    assert parsed_sjc.ctr_std == 1
+    assert parsed_sjc.ctr_size == 450.0
 
     # 4. SOY (Soybean FOB Santos, business day prior to 16th of Feb 2026 -> 2026-02-13)
     parsed_soy = parser.parse("SOYH26")
     assert parsed_soy.symbol == "SOY"
-    assert parsed_soy.lot_size == 1.0
+    assert parsed_soy.ctr_std == 1
+    assert parsed_soy.ctr_size == 34.0
 
     # 5. GLD (Gold, 3rd to last business day of Jan 2026 -> 2026-01-28)
     parsed_gld = parser.parse("GLDF26")
     assert parsed_gld.symbol == "GLD"
-    assert parsed_gld.lot_size == 1.0
+    assert parsed_gld.ctr_std == 1
+    assert parsed_gld.ctr_size == 1.0
 
     # 6. BIT (Bitcoin, last Friday of Jan 2026 -> 2026-01-30)
     parsed_bit = parser.parse("BITF26")
     assert parsed_bit.symbol == "BIT"
-    assert parsed_bit.lot_size == 1.0
-    assert parsed_bit.tick_size == 2.0
+    assert parsed_bit.ctr_std == 1
+    assert parsed_bit.ctr_size == 0.01
+    assert parsed_bit.tick_size == 20.0
 
     # 7. ISP (S&P 500, third Friday of March 2026 -> 2026-03-20)
     parsed_isp = parser.parse("ISPH26")
     assert parsed_isp.symbol == "ISP"
-    assert parsed_isp.lot_size == 50.0
+    assert parsed_isp.ctr_std == 1
+    assert parsed_isp.ctr_size == 50.0
     assert parsed_isp.tick_size == 0.25
 
     # 8. WSP (Micro S&P 500, third Friday of March 2026 -> 2026-03-20)
     parsed_wsp = parser.parse("WSPH26")
     assert parsed_wsp.symbol == "WSP"
-    assert parsed_wsp.lot_size == 2.5
+    assert parsed_wsp.ctr_std == 1
+    assert parsed_wsp.ctr_size == 2.5
     assert parsed_wsp.tick_size == 0.25
 
     # 9. ETH (Hydrous Ethanol, last business day of Jan 2026 -> 2026-01-30)
     parsed_eth = parser.parse("ETHF26")
     assert parsed_eth.symbol == "ETH"
-    assert parsed_eth.lot_size == 1.0
+    assert parsed_eth.ctr_std == 1
+    assert parsed_eth.ctr_size == 10.0
     assert parsed_eth.tick_size == 0.50
 
     # Let's also resolve expiration dates to verify they work
