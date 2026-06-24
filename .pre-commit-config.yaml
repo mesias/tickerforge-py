@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: .venv/bin/pytest
+        entry: python -c "import sys, os, subprocess; pytest = '.venv/bin/pytest' if os.path.exists('.venv/bin/pytest') else 'pytest'; sys.exit(subprocess.run([pytest] + sys.argv[1:]).returncode)"
         language: system
         pass_filenames: false
         always_run: true
