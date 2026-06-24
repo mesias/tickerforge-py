@@ -20,7 +20,8 @@ class ParsedTicker(BaseModel):
     year: int | None = None
     month: int
     tick_size: float
-    lot_size: float
+    ctr_std: int
+    ctr_size: float | None = None
     asset_type: Literal["future", "option"] = "future"
     exchange: str | None = None
     contract: ContractSpec | None = None
@@ -97,7 +98,8 @@ def _match_futures(ticker: str, spec: SpecRepository) -> list[ParsedTicker]:
                 year=year,
                 month=month,
                 tick_size=contract.tick_size,
-                lot_size=contract.lot_size,
+                ctr_std=contract.ctr_std,
+                ctr_size=contract.ctr_size,
                 asset_type="future",
                 exchange=contract.exchange,
                 contract=contract,
@@ -207,7 +209,8 @@ def _match_options(ticker: str, spec: SpecRepository) -> list[ParsedTicker]:
                         year=None,
                         month=month,
                         tick_size=option.tick_size,
-                        lot_size=option.lot_size,
+                        ctr_std=option.ctr_std,
+                        ctr_size=option.ctr_size,
                         asset_type="option",
                         exchange=option.exchange,
                         option=option,
@@ -243,7 +246,8 @@ def _match_options(ticker: str, spec: SpecRepository) -> list[ParsedTicker]:
                     year=year,
                     month=month,
                     tick_size=option.tick_size,
-                    lot_size=option.lot_size,
+                    ctr_std=option.ctr_std,
+                    ctr_size=option.ctr_size,
                     asset_type="option",
                     exchange=option.exchange,
                     option=option,

@@ -109,7 +109,8 @@ class OptionSpec(BaseModel):
     exchange: str
     option_style: str
     ticker_format: str
-    lot_size: float | None = Field(None, alias="contract_multiplier")
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)
@@ -131,7 +132,8 @@ class EquitySpec(BaseModel):
     description: str | None = None
     currency: str | None = None
     tick_size: float | None = None
-    lot_size: float | None = Field(None, alias="contract_multiplier")
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
     aliases: list[str] = Field(default_factory=list)
     sessions: list[SessionSegment] = Field(default_factory=list)
     exchange_timezone: str | None = None
@@ -181,7 +183,8 @@ class ContractSpec(BaseModel):
     ticker_format: str = "{symbol}{month_code}{yy}"
     contract_cycle: str
     expiration_rule: str
-    lot_size: float | None = Field(None, alias="contract_multiplier")
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)

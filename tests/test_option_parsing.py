@@ -91,7 +91,7 @@ def test_parse_equity_option_has_option_spec():
 def test_parse_equity_option_tick_and_lot():
     parsed = parse_ticker("PETRA30")
     assert parsed.tick_size == 0.01
-    assert parsed.lot_size == 100.00
+    assert parsed.ctr_std == 100
 
 
 # ===========================================================================
