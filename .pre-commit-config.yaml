@@ -29,7 +29,11 @@ repos:
           - numpy<2
           - pytest
 
-  - repo: .
-    rev: feature/ctr_std_size
+  - repo: local
     hooks:
       - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true

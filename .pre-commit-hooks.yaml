@@ -1,8 +1,0 @@
-- id: pytest
-  name: pytest
-  entry: python -m pytest
-  language: python
-  additional_dependencies:
-    - .[dev]
-  pass_filenames: false
-  always_run: true
