@@ -1,5 +1,6 @@
 # tickerforge
 
+[![PyPI version](https://img.shields.io/pypi/v/tickerforge.svg)](https://pypi.org/project/tickerforge/)
 [![codecov](https://codecov.io/gh/mesias/tickerforge-py/branch/main/graph/badge.svg)](https://codecov.io/gh/mesias/tickerforge-py)
 [![CI](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml/badge.svg)](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml)
 [![Python versions](https://img.shields.io/badge/python-3.10%20|%203.12%20|%203.14-3776ab?labelColor=434343&logo=python&logoColor=ffd43b)](https://github.com/mesias/tickerforge-py/blob/main/.github/workflows/ci.yml)
@@ -18,7 +19,7 @@ generates/parses derivatives tickers.
 ## Install
 
 ```bash
-pip install "git+https://github.com/mesias/tickerforge-py.git"
+pip install tickerforge
 ```
 
 `tickerforge` depends on `tickerforge-spec-data` from the same repository root (`pyproject.toml` in [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec)).
