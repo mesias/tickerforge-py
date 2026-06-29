@@ -26,6 +26,4 @@ def test_gen_defaults_to_today():
     today = date.today()
 
     assert forge.gen("DOL") == forge.generate("DOL", date=today)
-    assert forge.gen("DOL", offset=1) == forge.generate(
-        "DOL", date=today, offset=1
-    )
+    assert forge.gen("DOL", offset=1) == forge.generate("DOL", date=today, offset=1)

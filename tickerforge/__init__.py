@@ -1,5 +1,9 @@
 from tickerforge.spec_loader import load_spec
-from tickerforge.ticker_generator import TickerForge, gen_ticker_ctr, generate_ticker_for_contract
+from tickerforge.ticker_generator import (
+    TickerForge,
+    gen_ticker_ctr,
+    generate_ticker_for_contract,
+)
 from tickerforge.ticker_parser import (
     AmbiguousTickerError,
     ParsedTicker,

@@ -400,9 +400,7 @@ def _resolve_tagged_root(
         return None
 
     ref_date = _coerce_date(reference_date)
-    full_ticker = generate_ticker_for_contract(
-        contract, ref_date, spec, offset=offset
-    )
+    full_ticker = generate_ticker_for_contract(contract, ref_date, spec, offset=offset)
     result = _parse_full_ticker(full_ticker, spec, exchange=exchange)
     if result is not None:
         result = result.model_copy(
