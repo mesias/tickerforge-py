@@ -19,6 +19,7 @@ repos:
     rev: v1.19.1
     hooks:
       - id: mypy
+        verbose: true
         additional_dependencies:
           - pydantic>=2
           - PyYAML
