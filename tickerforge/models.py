@@ -234,13 +234,11 @@ class ContractSpec(BaseModel):
         offset: int = 0,
     ) -> str:
         """Front-month ticker using bundled spec unless ``spec`` is passed."""
-        from datetime import date
-
         from tickerforge.spec_loader import load_spec
-        from tickerforge.ticker_generator import generate_ticker_for_contract
+        from tickerforge.ticker_generator import gen_ticker_ctr
 
         repo = spec if spec is not None else load_spec()
-        return generate_ticker_for_contract(self, date.today(), repo, offset=offset)
+        return gen_ticker_ctr(self, repo, offset=offset)
 
     def trading_symbol_for(
         self,

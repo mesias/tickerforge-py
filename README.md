@@ -1,5 +1,7 @@
 # tickerforge
 
+[![PyPI](https://img.shields.io/pypi/v/tickerforge)](https://pypi.org/project/tickerforge/)
+[![spec-data PyPI](https://img.shields.io/pypi/v/tickerforge-spec-data?label=spec-data%20%28PyPI%29)](https://pypi.org/project/tickerforge-spec-data/)
 [![codecov](https://codecov.io/gh/mesias/tickerforge-py/branch/main/graph/badge.svg)](https://codecov.io/gh/mesias/tickerforge-py)
 [![CI](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml/badge.svg)](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml)
 [![Python versions](https://img.shields.io/badge/python-3.10%20|%203.12%20|%203.14-3776ab?labelColor=434343&logo=python&logoColor=ffd43b)](https://github.com/mesias/tickerforge-py/blob/main/.github/workflows/ci.yml)
@@ -12,20 +14,19 @@
 
 [![Repo Stats](https://github-readme-stats.vercel.app/api/pin/?username=mesias&repo=tickerforge-py&theme=dark)](https://github.com/mesias/tickerforge-py)
 
-Python library that loads [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) and
-generates/parses derivatives tickers.
+Python library that loads the [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) YAML tree from the [`tickerforge-spec-data`](https://pypi.org/project/tickerforge-spec-data/) package on [PyPI](https://pypi.org/project/tickerforge-spec-data/) (same content as the [crates.io `tickerforge-spec-data`](https://crates.io/crates/tickerforge-spec-data) crate) and generates/parses derivatives tickers.
 
 ## Install
 
 ```bash
-pip install "git+https://github.com/mesias/tickerforge-py.git"
+pip install tickerforge
 ```
 
-`tickerforge` depends on `tickerforge-spec-data` from the same repository root (`pyproject.toml` in [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec)).
+`tickerforge` depends on [`tickerforge-spec-data`](https://pypi.org/project/tickerforge-spec-data/) from PyPI (declared in `pyproject.toml`).
 
 ## Usage
 
-By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package (installed from [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) via `pip`). Pass `spec_path` only to override.
+By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package from [PyPI](https://pypi.org/project/tickerforge-spec-data/). Pass `spec_path` only to override.
 
 ### Generating tickers
 
