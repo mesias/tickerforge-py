@@ -1,4 +1,3 @@
-from datetime import date
 from pathlib import Path
 
 from tickerforge import TickerForge, load_spec
@@ -68,6 +67,5 @@ def test_contract_trading_symbol_matches_forge():
         "DOL", "2026-03-15"
     )
 
-    today = date.today().isoformat()
-    assert dol.trading_symbol_today(spec=spec) == forge.generate("DOL", today)
-    assert dol.trading_symbol_today() == TickerForge().generate("DOL", today)
+    assert dol.trading_symbol_today(spec=spec) == forge.gen("DOL")
+    assert dol.trading_symbol_today() == TickerForge().gen("DOL")

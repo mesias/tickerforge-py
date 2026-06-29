@@ -27,6 +27,7 @@ def test_generate_and_parse_round_trip():
     parsed = parser.parse(generated, reference_date="2026-06-01")
 
     assert generated == "INDM26"
+    assert parsed.ticker == "INDM26"
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
     assert parsed.month == 6
@@ -357,6 +358,22 @@ def test_builder_full_ticker_no_session_info():
     parsed = TickerParser.builder().ticker("DOLK26").parse()
     assert parsed.reference_date is None
     assert parsed.is_trading_session is None
+    assert parsed.ticker == "DOLK26"
+
+
+def test_parsed_ticker_from_root_symbol_formats_ticker():
+    parsed = parse_ticker("DOL", reference_date="2026-06-29")
+    assert parsed.ticker == "DOLN26"
+
+
+def test_parsed_ticker_formats_equity_option():
+    parsed = parse_ticker("PETRA30")
+    assert parsed.ticker == "PETRA30"
+
+
+def test_parsed_ticker_formats_dollar_option():
+    parsed = parse_ticker("DOLK26C5000")
+    assert parsed.ticker == "DOLK26C5000"
 
 
 def test_parse_new_b3_futures():

@@ -11,8 +11,9 @@ from pydantic import BaseModel
 
 from tickerforge.contract_cycle import resolve_contract_months
 from tickerforge.models import ContractSpec, OptionSpec
-from tickerforge.month_codes import code_to_month
+from tickerforge.month_codes import code_to_month, month_to_code
 from tickerforge.spec_loader import SpecRepository, load_spec
+from tickerforge.ticker_generator import format_contract_ticker
 
 
 class ParsedTicker(BaseModel):
@@ -31,6 +32,53 @@ class ParsedTicker(BaseModel):
     underlying: str | None = None
     reference_date: date | None = None
     is_trading_session: bool | None = None
+    # Bracket-tag offset (e.g. ``DOL[1]`` -> 1, ``IND[-1]`` -> -1) used to resolve a
+    # root symbol to a specific contract in the tradeable/expired list. ``None`` for
+    # full tickers (``DOLN26``) and plain roots not routed through the tag path.
+    offset: int | None = None
+
+    @property
+    def ticker(self) -> str:
+        """Full trading symbol string (e.g. ``DOLN26``, ``PETRA30``, ``DOLK26C5000``)."""
+        return self.format_ticker()
+
+    def format_ticker(self) -> str:
+        """Rebuild the exchange ticker string from this parsed result."""
+        if self.asset_type == "future":
+            if self.contract is None or self.year is None:
+                raise ValueError(
+                    "Cannot format futures ticker without contract and year"
+                )
+            return format_contract_ticker(self.contract, self.year, self.month)
+
+        if self.option is None or self.option_type is None or self.strike is None:
+            raise ValueError(
+                "Cannot format option ticker without option, option_type, and strike"
+            )
+
+        if self.option.type == "equity":
+            underlying = self.underlying or self.symbol
+            root = _equity_root(underlying)
+            codes = (
+                (self.option.call_month_codes or _EQUITY_CALL_CODES)
+                if self.option_type == "call"
+                else (self.option.put_month_codes or _EQUITY_PUT_CODES)
+            )
+            month_code = codes[self.month - 1]
+            return f"{root}{month_code}{self.strike}"
+
+        if self.year is None or self.option.option_type_codes is None:
+            raise ValueError(
+                "Cannot format non-equity option ticker without year and option_type_codes"
+            )
+        type_code = self.option.option_type_codes[self.option_type]
+        return (
+            f"{self.symbol}"
+            f"{month_to_code(self.month)}"
+            f"{self.year % 100:02d}"
+            f"{type_code}"
+            f"{self.strike}"
+        )
 
 
 class AmbiguousTickerError(ValueError):
@@ -318,6 +366,30 @@ def _resolve_root_symbol(
     (or today's) ``reference_date``, then parses the resulting full ticker.
     Sets ``reference_date`` and ``is_trading_session`` on the result.
     """
+    return _resolve_tagged_root(
+        ticker, spec, reference_date, exchange=exchange, offset=0
+    )
+
+
+# ``SYMBOL[n]`` bracket tag: ``DOL[1]``, ``WIN[2]``, ``IND[-1]``. Full tickers
+# such as ``DOLN26`` or ``DOLK26C5000`` contain no ``[`` and so do not match.
+_TAG_RE = re.compile(r"^(?P<root>[A-Za-z][A-Za-z0-9]*)\[(?P<offset>-?\d+)\]$")
+
+
+def _resolve_tagged_root(
+    ticker: str,
+    spec: SpecRepository,
+    reference_date: str | date | datetime | None,
+    exchange: str | None = None,
+    offset: int = 0,
+) -> ParsedTicker | None:
+    """Resolve a root symbol (with optional bracket offset) to a :class:`ParsedTicker`.
+
+    ``offset`` defaults to 0 (front month) so plain roots and ``SYMBOL[0]`` behave
+    identically. Stamps ``reference_date``, ``is_trading_session`` and ``offset``
+    on the result. Returns ``None`` when the root is unknown or the exchange filter
+    rejects it; out-of-range offsets raise :class:`ValueError` from the generator.
+    """
     from tickerforge.ticker_generator import generate_ticker_for_contract
 
     contract = spec.contracts.get(ticker.upper())
@@ -328,13 +400,14 @@ def _resolve_root_symbol(
         return None
 
     ref_date = _coerce_date(reference_date)
-    full_ticker = generate_ticker_for_contract(contract, ref_date, spec)
+    full_ticker = generate_ticker_for_contract(contract, ref_date, spec, offset=offset)
     result = _parse_full_ticker(full_ticker, spec, exchange=exchange)
     if result is not None:
         result = result.model_copy(
             update={
                 "reference_date": ref_date,
                 "is_trading_session": _is_trading_session(contract.exchange, ref_date),
+                "offset": offset,
             }
         )
     return result
@@ -362,6 +435,25 @@ def parse_ticker(
                 stacklevel=2,
             )
         return result
+
+    tag_match = _TAG_RE.match(ticker)
+    if tag_match is not None:
+        root = tag_match.group("root")
+        contract = spec.contracts.get(root.upper())
+        if contract is None:
+            raise ValueError(f"Unable to parse ticker: {ticker}")
+        if exchange is not None and contract.exchange.upper() != exchange.upper():
+            raise ValueError(f"Unable to parse ticker: {ticker}")
+        result = _resolve_tagged_root(
+            root,
+            spec,
+            reference_date,
+            exchange=exchange,
+            offset=int(tag_match.group("offset")),
+        )
+        if result is not None:
+            return result
+        raise ValueError(f"Unable to parse ticker: {ticker}")
 
     result = _resolve_root_symbol(ticker, spec, reference_date, exchange=exchange)
     if result is not None:
