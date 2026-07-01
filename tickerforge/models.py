@@ -102,14 +102,15 @@ class ExpirationRule(BaseModel):
 class OptionSpec(BaseModel):
     """Specification for an option contract loaded from ``options:`` blocks in spec YAML."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     type: str
     symbol: str | None = None
     exchange: str
     option_style: str
     ticker_format: str
-    contract_multiplier: float | None = None
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)
@@ -122,8 +123,59 @@ class OptionSpec(BaseModel):
     description: str | None = None
 
 
+class EquitySpec(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    symbol: str
+    exchange: str
+    type: str
+    description: str | None = None
+    currency: str | None = None
+    tick_size: float | None = None
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
+    aliases: list[str] = Field(default_factory=list)
+    sessions: list[SessionSegment] = Field(default_factory=list)
+    exchange_timezone: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sessions_map_to_segments(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        sess = data.get("sessions")
+        if isinstance(sess, dict):
+            data = {**data, "sessions": _sessions_mapping_to_list(sess)}
+        return data
+
+    @model_validator(mode="after")
+    def _validate_sessions(self) -> EquitySpec:
+        if self.sessions and self.sessions[0].name.lower() != "regular":
+            raise ValueError("First session segment must be named 'regular'")
+        return self
+
+    def regular_session(self) -> SessionSegment | None:
+        """The regular band (first segment; clock times in ``exchange_timezone``)."""
+        return self.sessions[0] if self.sessions else None
+
+    def is_unique_session(self) -> bool:
+        """True if there is exactly one trading band (no implicit pauses between segments)."""
+        return len(self.sessions) == 1
+
+    def default_session(self) -> SessionSegment | None:
+        """The sole session when there is only one band; ``None`` if zero or multiple segments."""
+        return self.sessions[0] if len(self.sessions) == 1 else None
+
+    def regular_session_start_end(self) -> tuple[str, str] | None:
+        """Start and end clock times for the regular session, e.g. ``('09:00', '18:30')``."""
+        reg = self.regular_session()
+        if not reg:
+            return None
+        return (reg.start, reg.end)
+
+
 class ContractSpec(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     symbol: str
     exchange: str
@@ -131,7 +183,8 @@ class ContractSpec(BaseModel):
     ticker_format: str = "{symbol}{month_code}{yy}"
     contract_cycle: str
     expiration_rule: str
-    contract_multiplier: float | None = None
+    ctr_std: int | None = Field(None, alias="contract_standard")
+    ctr_size: float | None = Field(None, alias="contract_size")
     tick_size: float | None = None
     currency: str | None = None
     aliases: list[str] = Field(default_factory=list)
@@ -181,13 +234,11 @@ class ContractSpec(BaseModel):
         offset: int = 0,
     ) -> str:
         """Front-month ticker using bundled spec unless ``spec`` is passed."""
-        from datetime import date
-
         from tickerforge.spec_loader import load_spec
-        from tickerforge.ticker_generator import generate_ticker_for_contract
+        from tickerforge.ticker_generator import gen_ticker_ctr
 
         repo = spec if spec is not None else load_spec()
-        return generate_ticker_for_contract(self, date.today(), repo, offset=offset)
+        return gen_ticker_ctr(self, repo, offset=offset)
 
     def trading_symbol_for(
         self,

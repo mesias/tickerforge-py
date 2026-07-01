@@ -27,6 +27,7 @@ def test_generate_and_parse_round_trip():
     parsed = parser.parse(generated, reference_date="2026-06-01")
 
     assert generated == "INDM26"
+    assert parsed.ticker == "INDM26"
     assert parsed.symbol == "IND"
     assert parsed.year == 2026
     assert parsed.month == 6
@@ -54,7 +55,8 @@ def test_parse_ticker_includes_tick_size_and_lot_size():
     contract = spec.get_contract("IND")
     parsed = parse_ticker("INDM26", spec, reference_date="2026-01-01")
     assert parsed.tick_size == contract.tick_size
-    assert parsed.lot_size == contract.contract_multiplier
+    assert parsed.ctr_std == contract.ctr_std
+    assert parsed.ctr_size == contract.ctr_size
 
 
 def test_parse_ticker_without_spec_matches_explicit_spec():
@@ -356,3 +358,138 @@ def test_builder_full_ticker_no_session_info():
     parsed = TickerParser.builder().ticker("DOLK26").parse()
     assert parsed.reference_date is None
     assert parsed.is_trading_session is None
+    assert parsed.ticker == "DOLK26"
+
+
+def test_parsed_ticker_from_root_symbol_formats_ticker():
+    parsed = parse_ticker("DOL", reference_date="2026-06-29")
+    assert parsed.ticker == "DOLN26"
+
+
+def test_parsed_ticker_formats_equity_option():
+    parsed = parse_ticker("PETRA30")
+    assert parsed.ticker == "PETRA30"
+
+
+def test_parsed_ticker_formats_dollar_option():
+    parsed = parse_ticker("DOLK26C5000")
+    assert parsed.ticker == "DOLK26C5000"
+
+
+def test_parse_new_b3_futures():
+    spec_path = Path(__file__).resolve().parents[1] / "spec"
+    parser = TickerParser(spec_path=spec_path)
+
+    # 1. ETR (Ethereum, last Friday of Jan 2026 -> 2026-01-30)
+    parsed_etr = parser.parse("ETRF26")
+    assert parsed_etr.symbol == "ETR"
+    assert parsed_etr.year == 2026
+    assert parsed_etr.month == 1
+    assert parsed_etr.ctr_std == 1
+    assert parsed_etr.ctr_size == 0.1
+
+    # 2. SOL (Solana, last Friday of Jan 2026 -> 2026-01-30)
+    parsed_sol = parser.parse("SOLF26")
+    assert parsed_sol.symbol == "SOL"
+    assert parsed_sol.ctr_std == 5
+    assert parsed_sol.ctr_size == 5.0
+
+    # 3. SJC (Soybean CBOT, 2nd business day prior to March 2026 -> 2026-02-26)
+    parsed_sjc = parser.parse("SJCH26")
+    assert parsed_sjc.symbol == "SJC"
+    assert parsed_sjc.ctr_std == 1
+    assert parsed_sjc.ctr_size == 450.0
+
+    # 4. SOY (Soybean FOB Santos, business day prior to 16th of Feb 2026 -> 2026-02-13)
+    parsed_soy = parser.parse("SOYH26")
+    assert parsed_soy.symbol == "SOY"
+    assert parsed_soy.ctr_std == 1
+    assert parsed_soy.ctr_size == 34.0
+
+    # 5. GLD (Gold, 3rd to last business day of Jan 2026 -> 2026-01-28)
+    parsed_gld = parser.parse("GLDF26")
+    assert parsed_gld.symbol == "GLD"
+    assert parsed_gld.ctr_std == 1
+    assert parsed_gld.ctr_size == 1.0
+
+    # 6. BIT (Bitcoin, last Friday of Jan 2026 -> 2026-01-30)
+    parsed_bit = parser.parse("BITF26")
+    assert parsed_bit.symbol == "BIT"
+    assert parsed_bit.ctr_std == 1
+    assert parsed_bit.ctr_size == 0.01
+    assert parsed_bit.tick_size == 20.0
+
+    # 7. ISP (S&P 500, third Friday of March 2026 -> 2026-03-20)
+    parsed_isp = parser.parse("ISPH26")
+    assert parsed_isp.symbol == "ISP"
+    assert parsed_isp.ctr_std == 1
+    assert parsed_isp.ctr_size == 50.0
+    assert parsed_isp.tick_size == 0.25
+
+    # 8. WSP (Micro S&P 500, third Friday of March 2026 -> 2026-03-20)
+    parsed_wsp = parser.parse("WSPH26")
+    assert parsed_wsp.symbol == "WSP"
+    assert parsed_wsp.ctr_std == 1
+    assert parsed_wsp.ctr_size == 2.5
+    assert parsed_wsp.tick_size == 0.25
+
+    # 9. ETH (Hydrous Ethanol, last business day of Jan 2026 -> 2026-01-30)
+    parsed_eth = parser.parse("ETHF26")
+    assert parsed_eth.symbol == "ETH"
+    assert parsed_eth.ctr_std == 1
+    assert parsed_eth.ctr_size == 10.0
+    assert parsed_eth.tick_size == 0.50
+
+    # Let's also resolve expiration dates to verify they work
+    from tickerforge.calendars import get_calendar
+    from tickerforge.expiration_rules import resolve_expiration
+
+    cal = get_calendar("B3")
+
+    # ETR: last Friday of Jan 2026
+    etr_rule = parser.spec.expiration_rules["last_friday"]
+    assert resolve_expiration(parsed_etr.contract, 2026, 1, etr_rule, cal) == date(
+        2026, 1, 30
+    )
+
+    # SJC: second business day prior to March 2026 (Feb 2026 has 20 business days; 2nd to last is Feb 26)
+    sjc_rule = parser.spec.expiration_rules["second_business_day_prior_to_month"]
+    assert resolve_expiration(parsed_sjc.contract, 2026, 3, sjc_rule, cal) == date(
+        2026, 2, 26
+    )
+
+    # SOY: business day prior to 16th of Feb 2026
+    soy_rule = parser.spec.expiration_rules[
+        "business_day_prior_to_16th_of_preceding_month"
+    ]
+    assert resolve_expiration(parsed_soy.contract, 2026, 3, soy_rule, cal) == date(
+        2026, 2, 13
+    )
+
+    # GLD: 3rd to last business day of Jan 2026
+    gld_rule = parser.spec.expiration_rules["third_to_last_business_day"]
+    assert resolve_expiration(parsed_gld.contract, 2026, 1, gld_rule, cal) == date(
+        2026, 1, 28
+    )
+
+    # BIT: last Friday of Jan 2026
+    assert resolve_expiration(parsed_bit.contract, 2026, 1, etr_rule, cal) == date(
+        2026, 1, 30
+    )
+
+    # ISP: third Friday of March 2026
+    isp_rule = parser.spec.expiration_rules["third_friday"]
+    assert resolve_expiration(parsed_isp.contract, 2026, 3, isp_rule, cal) == date(
+        2026, 3, 20
+    )
+
+    # WSP: third Friday of March 2026
+    assert resolve_expiration(parsed_wsp.contract, 2026, 3, isp_rule, cal) == date(
+        2026, 3, 20
+    )
+
+    # ETH: last business day of Jan 2026
+    eth_rule = parser.spec.expiration_rules["last_business_day"]
+    assert resolve_expiration(parsed_eth.contract, 2026, 1, eth_rule, cal) == date(
+        2026, 1, 30
+    )

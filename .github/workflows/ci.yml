@@ -27,6 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch tickerforge-spec into spec/
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          git clone --depth 1 --branch "$BRANCH" https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
+          git clone --depth 1 --branch develop https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
+          git clone --depth 1 --branch main https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
+          cp -r /tmp/tickerforge-spec/spec .
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -37,6 +45,7 @@ jobs:
       - name: Install package (editable + dev)
         run: |
           python -m pip install --upgrade pip
+          pip install -e /tmp/tickerforge-spec
           pip install -e ".[dev]"
 
       - name: Run pre-commit
@@ -54,6 +63,9 @@ jobs:
 
       - name: Fetch tickerforge-spec into spec/
         run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          git clone --depth 1 --branch "$BRANCH" https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
+          git clone --depth 1 --branch develop https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec || \
           git clone --depth 1 --branch main https://github.com/mesias/tickerforge-spec.git /tmp/tickerforge-spec
           cp -r /tmp/tickerforge-spec/spec .
 
@@ -67,6 +79,7 @@ jobs:
       - name: Install package (editable + dev)
         run: |
           python -m pip install --upgrade pip
+          pip install -e /tmp/tickerforge-spec
           pip install -e ".[dev]"
 
       - name: Run tests

@@ -1,5 +1,7 @@
 # tickerforge
 
+[![PyPI](https://img.shields.io/pypi/v/tickerforge)](https://pypi.org/project/tickerforge/)
+[![spec-data PyPI](https://img.shields.io/pypi/v/tickerforge-spec-data?label=spec-data%20%28PyPI%29)](https://pypi.org/project/tickerforge-spec-data/)
 [![codecov](https://codecov.io/gh/mesias/tickerforge-py/branch/main/graph/badge.svg)](https://codecov.io/gh/mesias/tickerforge-py)
 [![CI](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml/badge.svg)](https://github.com/mesias/tickerforge-py/actions/workflows/ci.yml)
 [![Python versions](https://img.shields.io/badge/python-3.10%20|%203.12%20|%203.14-3776ab?labelColor=434343&logo=python&logoColor=ffd43b)](https://github.com/mesias/tickerforge-py/blob/main/.github/workflows/ci.yml)
@@ -12,20 +14,19 @@
 
 [![Repo Stats](https://github-readme-stats.vercel.app/api/pin/?username=mesias&repo=tickerforge-py&theme=dark)](https://github.com/mesias/tickerforge-py)
 
-Python library that loads [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) and
-generates/parses derivatives tickers.
+Python library that loads the [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) YAML tree from the [`tickerforge-spec-data`](https://pypi.org/project/tickerforge-spec-data/) package on [PyPI](https://pypi.org/project/tickerforge-spec-data/) (same content as the [crates.io `tickerforge-spec-data`](https://crates.io/crates/tickerforge-spec-data) crate) and generates/parses derivatives tickers.
 
 ## Install
 
 ```bash
-pip install "git+https://github.com/mesias/tickerforge-py.git"
+pip install tickerforge
 ```
 
-`tickerforge` depends on `tickerforge-spec-data` from the same repository root (`pyproject.toml` in [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec)).
+`tickerforge` depends on [`tickerforge-spec-data`](https://pypi.org/project/tickerforge-spec-data/) from PyPI (declared in `pyproject.toml`).
 
 ## Usage
 
-By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package (installed from [`tickerforge-spec`](https://github.com/mesias/tickerforge-spec) via `pip`). Pass `spec_path` only to override.
+By default, `TickerForge` / `TickerParser` use the spec bundled in the `tickerforge-spec-data` package from [PyPI](https://pypi.org/project/tickerforge-spec-data/). Pass `spec_path` only to override.
 
 ### Generating tickers
 
@@ -56,7 +57,7 @@ from tickerforge import TickerParser, parse_ticker
 # Futures — full ticker
 parsed = parse_ticker("INDM26")
 print(parsed.symbol, parsed.year, parsed.month)  # IND 2026 6
-print(parsed.tick_size, parsed.lot_size)          # 5.0 1.0
+print(parsed.tick_size, parsed.ctr_std)          # 5.0 5
 print(parsed.asset_type)                          # "future"
 
 # Futures — root symbol
@@ -142,12 +143,19 @@ The builder enforces that `parse()` is only available after `ticker()` has been 
 
 ### Contract-centric (tick, session, trading symbol)
 
-`load_spec()` returns a repository of contracts. Each `ContractSpec` includes tick size and (after load) regular session times and exchange timezone, plus helpers that use the **bundled default spec** unless you pass `spec=…`:
+`load_spec()` returns a repository of contracts and equities. Each `ContractSpec` includes tick size and (after load) regular session times and exchange timezone, plus helpers that use the **bundled default spec** unless you pass `spec=…`:
 
 ```python
 from tickerforge import load_spec
 
 spec = load_spec()
+
+# Loading a cash equity
+petr4 = spec.equities["PETR4"]
+petr4.contract_multiplier        # 1.0
+petr4.regular_session().start    # "10:00"
+
+# Loading a future
 dol = spec.get_contract("DOL")
 
 dol.tick_size
@@ -169,7 +177,7 @@ Repeated calls with the default path reload the spec each time; for hot paths, p
 
 ## What this version supports
 
-- Loading exchanges, contract cycles, expiration rules, futures and **options** from all `contracts/**/*.yaml` (B3, CME, …)
+- Loading exchanges, contract cycles, expiration rules, futures, **options**, and **equities** from all `contracts/**/*.yaml` and `equities/**/*.yaml` (B3, CME, …)
 - Validating loaded structures with Pydantic models
 - Resolving contract months by cycle
 - Resolving expiration dates with spec-driven exchange calendars

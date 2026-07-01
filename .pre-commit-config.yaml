@@ -19,6 +19,7 @@ repos:
     rev: v1.19.1
     hooks:
       - id: mypy
+        verbose: true
         additional_dependencies:
           - pydantic>=2
           - PyYAML
@@ -26,4 +27,14 @@ repos:
           - python-dateutil
           - types-python-dateutil
           - exchange-calendars
+          - numpy<2
           - pytest
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true
