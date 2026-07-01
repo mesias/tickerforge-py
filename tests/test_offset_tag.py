@@ -204,3 +204,85 @@ def test_builder_tagged_root_matches_direct_parse():
     assert built.ticker == "DOLQ26"
     assert built == expected
     assert built.offset == 1
+
+
+# ---------------------------------------------------------------------------
+# Conditional Roll-Day Exception (@roll)
+# ---------------------------------------------------------------------------
+
+
+def test_dol_roll_tag_valid_on_roll_day():
+    forge = _forge()
+    # June 30th is the last trading day of DOLN26 (which expires on July 1st)
+    ref = "2026-06-30"
+
+    # Shortcut: DOL[@roll] resolves to the next contract (offset=1) -> DOLQ26
+    parsed = parse_ticker("DOL[@roll]", spec=forge.spec, reference_date=ref)
+    assert parsed.ticker == "DOLQ26"
+    assert parsed.offset == 1
+
+    # Explicit 0: DOL[0@roll] resolves to the expiring contract -> DOLN26
+    parsed_zero = parse_ticker("DOL[0@roll]", spec=forge.spec, reference_date=ref)
+    assert parsed_zero.ticker == "DOLN26"
+    assert parsed_zero.offset == 0
+
+
+def test_dol_roll_tag_invalid_on_non_roll_day():
+    forge = _forge()
+    # June 29th is NOT the roll day (June 30th is)
+    ref = "2026-06-29"
+    with pytest.raises(ValueError, match="is not valid on 2026-06-29"):
+        parse_ticker("DOL[@roll]", spec=forge.spec, reference_date=ref)
+
+    with pytest.raises(ValueError, match="is not valid on 2026-06-29"):
+        parse_ticker("DOL[0@roll]", spec=forge.spec, reference_date=ref)
+
+
+def test_win_roll_tag_index_future():
+    forge = _forge()
+    # For WINM26 (June 2026), the expiration is June 17th, 2026.
+    # WIN remains tradeable on expiration day, so the last trading day is June 17th.
+    ref_roll = "2026-06-17"
+    ref_other = "2026-06-16"
+
+    # On roll day: WIN[@roll] resolves to the next cycle contract (WINQ26)
+    parsed = parse_ticker("WIN[@roll]", spec=forge.spec, reference_date=ref_roll)
+    assert parsed.ticker == "WINQ26"
+    assert parsed.offset == 1
+
+    # On roll day: WIN[0@roll] resolves to the expiring contract (WINM26)
+    parsed_zero = parse_ticker("WIN[0@roll]", spec=forge.spec, reference_date=ref_roll)
+    assert parsed_zero.ticker == "WINM26"
+    assert parsed_zero.offset == 0
+
+    # On non-roll day: fails to parse
+    with pytest.raises(ValueError, match="is not valid on 2026-06-16"):
+        parse_ticker("WIN[@roll]", spec=forge.spec, reference_date=ref_other)
+
+
+# ---------------------------------------------------------------------------
+# is_valid Flag Verification
+# ---------------------------------------------------------------------------
+
+
+def test_is_valid_flag_for_roll_day():
+    forge = _forge()
+    ref = "2026-06-30"
+    parsed = parse_ticker("DOL[@roll]", spec=forge.spec, reference_date=ref)
+    assert parsed.is_valid is True
+
+
+def test_is_valid_flag_for_expired_contracts():
+    forge = _forge()
+    ref = "2026-07-01"
+    # DOLQ24 (August 2024 contract) has expired as of July 1st, 2026
+    parsed_expired = parse_ticker("DOLQ24", spec=forge.spec, reference_date=ref)
+    assert parsed_expired.is_valid is False
+
+
+def test_is_valid_flag_for_active_contracts():
+    forge = _forge()
+    ref = "2026-07-01"
+    # DOLQ26 (August 2026 contract) is active as of July 1st, 2026
+    parsed_active = parse_ticker("DOLQ26", spec=forge.spec, reference_date=ref)
+    assert parsed_active.is_valid is True

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -36,6 +36,8 @@ class ParsedTicker(BaseModel):
     # root symbol to a specific contract in the tradeable/expired list. ``None`` for
     # full tickers (``DOLN26``) and plain roots not routed through the tag path.
     offset: int | None = None
+    # Whether the contract is tradeable/valid on the reference date.
+    is_valid: bool | None = None
 
     @property
     def ticker(self) -> str:
@@ -373,7 +375,46 @@ def _resolve_root_symbol(
 
 # ``SYMBOL[n]`` bracket tag: ``DOL[1]``, ``WIN[2]``, ``IND[-1]``. Full tickers
 # such as ``DOLN26`` or ``DOLK26C5000`` contain no ``[`` and so do not match.
-_TAG_RE = re.compile(r"^(?P<root>[A-Za-z][A-Za-z0-9]*)\[(?P<offset>-?\d+)\]$")
+_TAG_RE = re.compile(
+    r"^(?P<root>[A-Za-z][A-Za-z0-9]*)\[(?:(?P<offset>-?\d+)?@(?P<cond>roll)|(?P<offset_val>-?\d+))\]$"
+)
+
+
+def _is_roll_day(contract: ContractSpec, ref_date: date, spec: SpecRepository) -> bool:
+    from tickerforge.calendars import get_calendar
+    from tickerforge.expiration_rules import resolve_expiration
+    from tickerforge.ticker_generator import _collect_eligible_contracts
+
+    eligible = _collect_eligible_contracts(contract, ref_date, spec)
+    if not eligible:
+        return False
+    front_year, front_month = eligible[0]
+
+    rule = spec.expiration_rules[contract.expiration_rule]
+    calendar = get_calendar(contract.exchange)
+    front_expiration = resolve_expiration(
+        contract, front_year, front_month, rule, calendar
+    )
+
+    if contract.symbol in ("DOL", "WDO"):
+        roll_date = front_expiration
+    else:
+        sessions = calendar.sessions_in_range(
+            front_expiration, front_expiration + timedelta(days=10)
+        )
+        session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
+        future_sessions = [d for d in session_dates if d > front_expiration]
+        if not future_sessions:
+            return False
+        roll_date = future_sessions[0]
+
+    sessions = calendar.sessions_in_range(roll_date - timedelta(days=30), roll_date)
+    session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
+    past_sessions = [d for d in session_dates if d < roll_date]
+    if not past_sessions:
+        return False
+    last_trading_day = past_sessions[-1]
+    return ref_date == last_trading_day
 
 
 def _resolve_tagged_root(
@@ -382,6 +423,7 @@ def _resolve_tagged_root(
     reference_date: str | date | datetime | None,
     exchange: str | None = None,
     offset: int = 0,
+    condition: str | None = None,
 ) -> ParsedTicker | None:
     """Resolve a root symbol (with optional bracket offset) to a :class:`ParsedTicker`.
 
@@ -400,14 +442,35 @@ def _resolve_tagged_root(
         return None
 
     ref_date = _coerce_date(reference_date)
+
+    if condition == "roll":
+        if not _is_roll_day(contract, ref_date, spec):
+            raise ValueError(
+                f"Ticker '{contract.symbol}[{offset}@roll]' is not valid on {ref_date.isoformat()} "
+                f"because it is not the last trading day of the expiring contract."
+            )
+
     full_ticker = generate_ticker_for_contract(contract, ref_date, spec, offset=offset)
     result = _parse_full_ticker(full_ticker, spec, exchange=exchange)
     if result is not None:
+        from tickerforge.calendars import get_calendar
+        from tickerforge.expiration_rules import resolve_expiration
+        from tickerforge.ticker_generator import _still_tradeable
+
+        rule = spec.expiration_rules[contract.expiration_rule]
+        calendar = get_calendar(contract.exchange)
+        assert result.year is not None
+        expiration_date = resolve_expiration(
+            contract, result.year, result.month, rule, calendar
+        )
+        is_valid = _still_tradeable(ref_date, expiration_date, contract)
+
         result = result.model_copy(
             update={
                 "reference_date": ref_date,
                 "is_trading_session": _is_trading_session(contract.exchange, ref_date),
                 "offset": offset,
+                "is_valid": is_valid,
             }
         )
     return result
@@ -429,6 +492,30 @@ def parse_ticker(
             and result.asset_type == "future"
             and result.year is not None
         ):
+            ref_date = _coerce_date(reference_date)
+            contract = result.contract
+            assert contract is not None
+            from tickerforge.calendars import get_calendar
+            from tickerforge.expiration_rules import resolve_expiration
+            from tickerforge.ticker_generator import _still_tradeable
+
+            rule = spec.expiration_rules[contract.expiration_rule]
+            calendar = get_calendar(contract.exchange)
+            expiration_date = resolve_expiration(
+                contract, result.year, result.month, rule, calendar
+            )
+            is_valid = _still_tradeable(ref_date, expiration_date, contract)
+
+            result = result.model_copy(
+                update={
+                    "reference_date": ref_date,
+                    "is_trading_session": _is_trading_session(
+                        contract.exchange, ref_date
+                    ),
+                    "is_valid": is_valid,
+                }
+            )
+
             warnings.warn(
                 f"reference_date is ignored for full ticker '{ticker}'; "
                 f"year and month are derived directly from the ticker string",
@@ -444,12 +531,21 @@ def parse_ticker(
             raise ValueError(f"Unable to parse ticker: {ticker}")
         if exchange is not None and contract.exchange.upper() != exchange.upper():
             raise ValueError(f"Unable to parse ticker: {ticker}")
+
+        cond = tag_match.group("cond")
+        if cond is not None:
+            offset_str = tag_match.group("offset")
+            offset = int(offset_str) if offset_str is not None else 1
+        else:
+            offset = int(tag_match.group("offset_val"))
+
         result = _resolve_tagged_root(
             root,
             spec,
             reference_date,
             exchange=exchange,
-            offset=int(tag_match.group("offset")),
+            offset=offset,
+            condition=cond,
         )
         if result is not None:
             return result
