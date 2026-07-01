@@ -286,4 +286,3 @@ def test_is_valid_flag_for_active_contracts():
     # DOLQ26 (August 2026 contract) is active as of July 1st, 2026
     parsed_active = parse_ticker("DOLQ26", spec=forge.spec, reference_date=ref)
     assert parsed_active.is_valid is True
-

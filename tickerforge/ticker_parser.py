@@ -392,12 +392,16 @@ def _is_roll_day(contract: ContractSpec, ref_date: date, spec: SpecRepository) -
 
     rule = spec.expiration_rules[contract.expiration_rule]
     calendar = get_calendar(contract.exchange)
-    front_expiration = resolve_expiration(contract, front_year, front_month, rule, calendar)
+    front_expiration = resolve_expiration(
+        contract, front_year, front_month, rule, calendar
+    )
 
     if contract.symbol in ("DOL", "WDO"):
         roll_date = front_expiration
     else:
-        sessions = calendar.sessions_in_range(front_expiration, front_expiration + timedelta(days=10))
+        sessions = calendar.sessions_in_range(
+            front_expiration, front_expiration + timedelta(days=10)
+        )
         session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
         future_sessions = [d for d in session_dates if d > front_expiration]
         if not future_sessions:
@@ -452,9 +456,13 @@ def _resolve_tagged_root(
         from tickerforge.calendars import get_calendar
         from tickerforge.expiration_rules import resolve_expiration
         from tickerforge.ticker_generator import _still_tradeable
+
         rule = spec.expiration_rules[contract.expiration_rule]
         calendar = get_calendar(contract.exchange)
-        expiration_date = resolve_expiration(contract, result.year, result.month, rule, calendar)
+        assert result.year is not None
+        expiration_date = resolve_expiration(
+            contract, result.year, result.month, rule, calendar
+        )
         is_valid = _still_tradeable(ref_date, expiration_date, contract)
 
         result = result.model_copy(
@@ -486,18 +494,24 @@ def parse_ticker(
         ):
             ref_date = _coerce_date(reference_date)
             contract = result.contract
+            assert contract is not None
             from tickerforge.calendars import get_calendar
             from tickerforge.expiration_rules import resolve_expiration
             from tickerforge.ticker_generator import _still_tradeable
+
             rule = spec.expiration_rules[contract.expiration_rule]
             calendar = get_calendar(contract.exchange)
-            expiration_date = resolve_expiration(contract, result.year, result.month, rule, calendar)
+            expiration_date = resolve_expiration(
+                contract, result.year, result.month, rule, calendar
+            )
             is_valid = _still_tradeable(ref_date, expiration_date, contract)
 
             result = result.model_copy(
                 update={
                     "reference_date": ref_date,
-                    "is_trading_session": _is_trading_session(contract.exchange, ref_date),
+                    "is_trading_session": _is_trading_session(
+                        contract.exchange, ref_date
+                    ),
                     "is_valid": is_valid,
                 }
             )
