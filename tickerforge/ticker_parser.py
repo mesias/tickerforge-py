@@ -10,7 +10,7 @@ from dateutil import parser as date_parser
 from pydantic import BaseModel
 
 from tickerforge.contract_cycle import resolve_contract_months
-from tickerforge.models import ContractSpec, OptionSpec
+from tickerforge.models import ContractSpec, EquitySpec, OptionSpec
 from tickerforge.month_codes import code_to_month, month_to_code
 from tickerforge.spec_loader import SpecRepository, load_spec
 from tickerforge.ticker_generator import format_contract_ticker
@@ -19,14 +19,15 @@ from tickerforge.ticker_generator import format_contract_ticker
 class ParsedTicker(BaseModel):
     symbol: str
     year: int | None = None
-    month: int
+    month: int | None = None
     tick_size: float
     ctr_std: int
     ctr_size: float | None = None
-    asset_type: Literal["future", "option"] = "future"
+    asset_type: Literal["future", "option", "equity"] = "future"
     exchange: str | None = None
     contract: ContractSpec | None = None
     option: OptionSpec | None = None
+    equity: EquitySpec | None = None
     option_type: Literal["call", "put"] | None = None
     strike: str | None = None
     underlying: str | None = None
@@ -46,16 +47,24 @@ class ParsedTicker(BaseModel):
 
     def format_ticker(self) -> str:
         """Rebuild the exchange ticker string from this parsed result."""
+        if self.asset_type == "equity":
+            return self.symbol
+
         if self.asset_type == "future":
-            if self.contract is None or self.year is None:
+            if self.contract is None or self.year is None or self.month is None:
                 raise ValueError(
-                    "Cannot format futures ticker without contract and year"
+                    "Cannot format futures ticker without contract, year, and month"
                 )
             return format_contract_ticker(self.contract, self.year, self.month)
 
-        if self.option is None or self.option_type is None or self.strike is None:
+        if (
+            self.option is None
+            or self.option_type is None
+            or self.strike is None
+            or self.month is None
+        ):
             raise ValueError(
-                "Cannot format option ticker without option, option_type, and strike"
+                "Cannot format option ticker without option, option_type, strike, and month"
             )
 
         if self.option.type == "equity":
@@ -460,6 +469,7 @@ def _resolve_tagged_root(
         rule = spec.expiration_rules[contract.expiration_rule]
         calendar = get_calendar(contract.exchange)
         assert result.year is not None
+        assert result.month is not None
         expiration_date = resolve_expiration(
             contract, result.year, result.month, rule, calendar
         )
@@ -485,6 +495,34 @@ def parse_ticker(
     if spec is None:
         spec = load_spec()
 
+    # Check equities first.
+    key = ticker.upper()
+    if key in spec.equities:
+        eq = spec.equities[key]
+        matches_exchange = True
+        if exchange is not None:
+            if eq.exchange.upper() != exchange.upper():
+                matches_exchange = False
+        if matches_exchange:
+            ref_date = (
+                _coerce_date(reference_date) if reference_date is not None else None
+            )
+            is_trading_session = None
+            if ref_date is not None:
+                is_trading_session = _is_trading_session(eq.exchange, ref_date)
+            return ParsedTicker(
+                symbol=eq.symbol,
+                tick_size=eq.tick_size or 0.01,
+                ctr_std=eq.ctr_std or 100,
+                ctr_size=eq.ctr_size or 1.0,
+                asset_type="equity",
+                exchange=eq.exchange,
+                equity=eq,
+                reference_date=ref_date,
+                is_trading_session=is_trading_session,
+                is_valid=True if ref_date is not None else None,
+            )
+
     result = _parse_full_ticker(ticker, spec, exchange=exchange)
     if result is not None:
         if (
@@ -495,6 +533,7 @@ def parse_ticker(
             ref_date = _coerce_date(reference_date)
             contract = result.contract
             assert contract is not None
+            assert result.month is not None
             from tickerforge.calendars import get_calendar
             from tickerforge.expiration_rules import resolve_expiration
             from tickerforge.ticker_generator import _still_tradeable
