@@ -493,3 +493,34 @@ def test_parse_new_b3_futures():
     assert resolve_expiration(parsed_eth.contract, 2026, 1, eth_rule, cal) == date(
         2026, 1, 30
     )
+
+
+def test_parse_cash_equities():
+    spec_path = Path(__file__).resolve().parents[1] / "spec"
+    parser = TickerParser(spec_path=spec_path)
+
+    # 1. Parse PETR4 (known cash equity)
+    parsed_petr4 = parser.parse("PETR4")
+    assert parsed_petr4.symbol == "PETR4"
+    assert parsed_petr4.asset_type == "equity"
+    assert parsed_petr4.exchange == "B3"
+    assert parsed_petr4.tick_size == 0.01
+    assert parsed_petr4.ctr_std == 100
+    assert parsed_petr4.ctr_size == 1.0
+    assert parsed_petr4.equity is not None
+    assert parsed_petr4.ticker == "PETR4"
+
+    # 2. Parse PETR4 with reference date
+    parsed_date = parser.parse("PETR4", reference_date="2026-04-15")
+    assert parsed_date.reference_date == date(2026, 4, 15)
+    assert parsed_date.is_trading_session is True
+    assert parsed_date.is_valid is True
+
+    # 3. Parse ALOS3 with exchange filter
+    parsed_alos3 = parser.parse("ALOS3", exchange="B3")
+    assert parsed_alos3.symbol == "ALOS3"
+    assert parsed_alos3.exchange == "B3"
+
+    # 4. Unknown equity on incorrect exchange should raise error
+    with pytest.raises(ValueError, match="Unable to parse ticker"):
+        parser.parse("PETR4", exchange="CME")
