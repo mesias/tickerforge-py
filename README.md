@@ -98,6 +98,25 @@ parsed = parse_ticker("ESM26", exchange="CME")
 # Using TickerParser (reuses a loaded spec)
 parser = TickerParser()
 parsed = parser.parse("DOLK26")
+
+### Classifying tickers (fast path)
+
+`classify_ticker` returns asset type and root **without** calendars, expiration rules, or front-month generation — useful for UI filters and routing. `load_spec` results are cached by path.
+
+```python
+from tickerforge import classify_ticker, load_spec
+
+spec = load_spec()  # cached
+classified = classify_ticker("INDM26", spec)
+print(classified.asset_type, classified.root)  # future IND
+
+classified = classify_ticker("PETRA30", spec)
+print(classified.asset_type, classified.root)  # option PETR4
+
+classified = classify_ticker("DOL[1]", spec)
+print(classified.asset_type, classified.root)  # future DOL
+```
+
 parsed = parser.parse("DOLK26C5000", exchange="B3")
 ```
 
