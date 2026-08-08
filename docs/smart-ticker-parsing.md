@@ -73,6 +73,21 @@ except AmbiguousTickerError as e:
     print(e)  # lists each matching instrument and hints to pass exchange=
 ```
 
+## Fast classification
+
+Use `classify_ticker` when you only need `asset_type` / root (and optional year/month) and do **not** need calendars, validity, tick sizes, or front-month resolution. Futures/options regexes are precompiled once per loaded `SpecRepository`. `load_spec` itself is cached by resolved path (`clear_load_spec_cache()` to force reload).
+
+```python
+from tickerforge import classify_ticker, load_spec
+
+spec = load_spec()
+assert classify_ticker("INDM26", spec).asset_type == "future"
+assert classify_ticker("PETRA30", spec).root == "PETR4"
+assert classify_ticker("IND", spec).year is None  # root only — no generator
+```
+
+Ambiguous matches raise `AmbiguousClassifyError`.
+
 ## API
 
 ```python

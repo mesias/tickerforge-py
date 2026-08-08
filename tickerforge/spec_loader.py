@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -26,6 +28,8 @@ class SpecRepository:
     contract_cycles: dict[str, ContractCycle]
     expiration_rules: dict[str, ExpirationRule]
     schedules: dict[str, ExchangeSchedule]
+    # Lazy-filled by the parser; not part of load identity.
+    _pattern_index: Any | None = field(default=None, repr=False, compare=False)
 
     def get_exchange(self, code: str) -> Exchange:
         key = code.upper()
@@ -163,18 +167,21 @@ def _default_spec_path() -> Path:
     return Path(get_spec_root()).expanduser().resolve()
 
 
-def load_spec(path: str | Path | None = None) -> SpecRepository:
-    spec_root = (
-        _default_spec_path() if path is None else Path(path).expanduser().resolve()
-    )
-    if not spec_root.exists():
-        raise FileNotFoundError(f"Spec path does not exist: {spec_root}")
+def _resolve_spec_root(path: str | Path | None) -> Path:
+    return _default_spec_path() if path is None else Path(path).expanduser().resolve()
 
-    exchanges = _load_exchanges(spec_root)
-    contract_cycles, expiration_rules = _load_cycles_and_rules(spec_root)
+
+@lru_cache(maxsize=8)
+def _load_spec_cached(spec_root: str) -> SpecRepository:
+    root = Path(spec_root)
+    if not root.exists():
+        raise FileNotFoundError(f"Spec path does not exist: {root}")
+
+    exchanges = _load_exchanges(root)
+    contract_cycles, expiration_rules = _load_cycles_and_rules(root)
 
     contracts: dict[str, ContractSpec] = {}
-    for contract in _load_contracts(spec_root):
+    for contract in _load_contracts(root):
         if contract.contract_cycle not in contract_cycles:
             raise ValueError(
                 f"Contract {contract.symbol} references unknown cycle "
@@ -200,11 +207,11 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
             }
         )
 
-    options = _load_options(spec_root)
+    options = _load_options(root)
 
-    schedules = load_schedules(spec_root)
+    schedules = load_schedules(root)
 
-    equities_list = _load_equities(spec_root)
+    equities_list = _load_equities(root)
     equities: dict[str, EquitySpec] = {}
     for eq in equities_list:
         ex = exchanges.get(eq.exchange.upper())
@@ -228,3 +235,17 @@ def load_spec(path: str | Path | None = None) -> SpecRepository:
         expiration_rules=expiration_rules,
         schedules=schedules,
     )
+
+
+def load_spec(path: str | Path | None = None) -> SpecRepository:
+    """Load a :class:`SpecRepository` from *path* (or the bundled default).
+
+    Results are cached by resolved absolute path (up to 8 entries). Call
+    :func:`clear_load_spec_cache` if the YAML on disk changed and must be reloaded.
+    """
+    return _load_spec_cached(str(_resolve_spec_root(path)))
+
+
+def clear_load_spec_cache() -> None:
+    """Drop all cached :func:`load_spec` results."""
+    _load_spec_cached.cache_clear()

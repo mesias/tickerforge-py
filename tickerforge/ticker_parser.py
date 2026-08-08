@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -121,8 +122,30 @@ def _coerce_date(value: str | date | datetime | None) -> date:
 
 
 # ---------------------------------------------------------------------------
-# Futures pattern matching
+# Futures / options pattern matching (precompiled per SpecRepository)
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _EquityOptionPattern:
+    pattern: re.Pattern[str]
+    underlying: str
+    option: OptionSpec
+
+
+@dataclass(frozen=True)
+class _NonequityOptionPattern:
+    pattern: re.Pattern[str]
+    option: OptionSpec
+
+
+@dataclass
+class _PatternIndex:
+    """Precompiled futures/options regexes for one :class:`SpecRepository`."""
+
+    futures: list[tuple[re.Pattern[str], ContractSpec]]
+    equity_options: list[_EquityOptionPattern]
+    nonequity_options: list[_NonequityOptionPattern]
 
 
 def _pattern_for_contract(contract: ContractSpec) -> re.Pattern[str]:
@@ -135,10 +158,47 @@ def _pattern_for_contract(contract: ContractSpec) -> re.Pattern[str]:
     return re.compile(f"^{pattern}$")
 
 
+def _build_pattern_index(spec: SpecRepository) -> _PatternIndex:
+    futures = [
+        (_pattern_for_contract(contract), contract)
+        for contract in spec.contracts.values()
+    ]
+    equity_options: list[_EquityOptionPattern] = []
+    nonequity_options: list[_NonequityOptionPattern] = []
+    for option in spec.options:
+        if option.type == "equity":
+            for pat, underlying in _patterns_for_equity_option(option):
+                equity_options.append(
+                    _EquityOptionPattern(
+                        pattern=pat, underlying=underlying, option=option
+                    )
+                )
+        else:
+            nonequity_pat = _pattern_for_nonequity_option(option)
+            if nonequity_pat is not None:
+                nonequity_options.append(
+                    _NonequityOptionPattern(pattern=nonequity_pat, option=option)
+                )
+    return _PatternIndex(
+        futures=futures,
+        equity_options=equity_options,
+        nonequity_options=nonequity_options,
+    )
+
+
+def _pattern_index(spec: SpecRepository) -> _PatternIndex:
+    cached = spec._pattern_index
+    if isinstance(cached, _PatternIndex):
+        return cached
+    built = _build_pattern_index(spec)
+    spec._pattern_index = built
+    return built
+
+
 def _match_futures(ticker: str, spec: SpecRepository) -> list[ParsedTicker]:
     results: list[ParsedTicker] = []
-    for contract in spec.contracts.values():
-        match = _pattern_for_contract(contract).match(ticker)
+    for pattern, contract in _pattern_index(spec).futures:
+        match = pattern.match(ticker)
         if not match:
             continue
 
@@ -249,73 +309,245 @@ def _pattern_for_nonequity_option(option: OptionSpec) -> re.Pattern[str] | None:
 
 def _match_options(ticker: str, spec: SpecRepository) -> list[ParsedTicker]:
     results: list[ParsedTicker] = []
+    index = _pattern_index(spec)
 
-    for option in spec.options:
-        if option.type == "equity":
-            for pat, underlying in _patterns_for_equity_option(option):
-                match = pat.match(ticker)
-                if not match:
-                    continue
-                parsed = _equity_code_to_month_and_type(
-                    match.group("month_code"), option
-                )
-                if parsed is None:
-                    continue
-                month, opt_type = parsed
-                results.append(
-                    ParsedTicker(
-                        symbol=underlying,
-                        year=None,
-                        month=month,
-                        tick_size=option.tick_size,
-                        ctr_std=option.ctr_std,
-                        ctr_size=option.ctr_size,
-                        asset_type="option",
-                        exchange=option.exchange,
-                        option=option,
-                        option_type=opt_type,
-                        strike=match.group("strike"),
-                        underlying=underlying,
-                    )
-                )
+    for eq_entry in index.equity_options:
+        match = eq_entry.pattern.match(ticker)
+        if not match:
+            continue
+        parsed = _equity_code_to_month_and_type(
+            match.group("month_code"), eq_entry.option
+        )
+        if parsed is None:
+            continue
+        month, opt_type = parsed
+        option = eq_entry.option
+        underlying = eq_entry.underlying
+        results.append(
+            ParsedTicker(
+                symbol=underlying,
+                year=None,
+                month=month,
+                tick_size=option.tick_size,
+                ctr_std=option.ctr_std,
+                ctr_size=option.ctr_size,
+                asset_type="option",
+                exchange=option.exchange,
+                option=option,
+                option_type=opt_type,
+                strike=match.group("strike"),
+                underlying=underlying,
+            )
+        )
+
+    for ne_entry in index.nonequity_options:
+        match = ne_entry.pattern.match(ticker)
+        if not match:
+            continue
+
+        option = ne_entry.option
+        month = code_to_month(match.group("month_code"))
+        year = 2000 + int(match.group("yy"))
+        raw_type = match.group("option_type")
+
+        if option.option_type_codes is None:
+            continue
+        if raw_type == option.option_type_codes["call"]:
+            ne_opt_type: Literal["call", "put"] = "call"
         else:
-            nonequity_pat: re.Pattern[str] | None = _pattern_for_nonequity_option(
-                option
+            ne_opt_type = "put"
+
+        results.append(
+            ParsedTicker(
+                symbol=option.symbol,
+                year=year,
+                month=month,
+                tick_size=option.tick_size,
+                ctr_std=option.ctr_std,
+                ctr_size=option.ctr_size,
+                asset_type="option",
+                exchange=option.exchange,
+                option=option,
+                option_type=ne_opt_type,
+                strike=match.group("strike"),
             )
-            if nonequity_pat is None:
-                continue
-            match = nonequity_pat.match(ticker)
-            if not match:
-                continue
-
-            month = code_to_month(match.group("month_code"))
-            year = 2000 + int(match.group("yy"))
-            raw_type = match.group("option_type")
-
-            if option.option_type_codes is None:
-                continue
-            if raw_type == option.option_type_codes["call"]:
-                opt_type = "call"
-            else:
-                opt_type = "put"
-
-            results.append(
-                ParsedTicker(
-                    symbol=option.symbol,
-                    year=year,
-                    month=month,
-                    tick_size=option.tick_size,
-                    ctr_std=option.ctr_std,
-                    ctr_size=option.ctr_size,
-                    asset_type="option",
-                    exchange=option.exchange,
-                    option=option,
-                    option_type=opt_type,
-                    strike=match.group("strike"),
-                )
-            )
+        )
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Lightweight classification (no calendars / validity / generator)
+# ---------------------------------------------------------------------------
+
+
+class TickerClass(BaseModel):
+    """Lightweight ticker identity: type and root without calendars or validity."""
+
+    asset_type: Literal["future", "option", "equity"]
+    root: str
+    exchange: str | None = None
+    year: int | None = None
+    month: int | None = None
+    option_type: Literal["call", "put"] | None = None
+    strike: str | None = None
+    underlying: str | None = None
+
+
+class AmbiguousClassifyError(ValueError):
+    """Raised when :func:`classify_ticker` matches multiple instruments."""
+
+    def __init__(self, ticker: str, matches: list[TickerClass]) -> None:
+        self.ticker = ticker
+        self.matches = matches
+        detail = "\n".join(
+            f"  - {m.asset_type} on {m.exchange}: {m.root}" for m in matches
+        )
+        super().__init__(
+            f"Ambiguous ticker '{ticker}' matched {len(matches)} instruments:\n{detail}\n"
+            f"Pass exchange= to disambiguate."
+        )
+
+
+def _classify_futures(ticker: str, spec: SpecRepository) -> list[TickerClass]:
+    results: list[TickerClass] = []
+    for pattern, contract in _pattern_index(spec).futures:
+        match = pattern.match(ticker)
+        if not match:
+            continue
+        results.append(
+            TickerClass(
+                asset_type="future",
+                root=contract.symbol,
+                exchange=contract.exchange,
+                year=2000 + int(match.group("yy")),
+                month=code_to_month(match.group("month_code")),
+            )
+        )
+    return results
+
+
+def _classify_options(ticker: str, spec: SpecRepository) -> list[TickerClass]:
+    results: list[TickerClass] = []
+    index = _pattern_index(spec)
+
+    for eq_entry in index.equity_options:
+        match = eq_entry.pattern.match(ticker)
+        if not match:
+            continue
+        parsed = _equity_code_to_month_and_type(
+            match.group("month_code"), eq_entry.option
+        )
+        if parsed is None:
+            continue
+        month, eq_opt_type = parsed
+        if eq_opt_type not in ("call", "put"):
+            continue
+        results.append(
+            TickerClass(
+                asset_type="option",
+                root=eq_entry.underlying,
+                exchange=eq_entry.option.exchange,
+                month=month,
+                option_type=eq_opt_type,
+                strike=match.group("strike"),
+                underlying=eq_entry.underlying,
+            )
+        )
+
+    for ne_entry in index.nonequity_options:
+        match = ne_entry.pattern.match(ticker)
+        if not match:
+            continue
+        option = ne_entry.option
+        if option.option_type_codes is None:
+            continue
+        raw_type = match.group("option_type")
+        ne_opt_type: Literal["call", "put"] = (
+            "call" if raw_type == option.option_type_codes["call"] else "put"
+        )
+        results.append(
+            TickerClass(
+                asset_type="option",
+                root=option.symbol or "",
+                exchange=option.exchange,
+                year=2000 + int(match.group("yy")),
+                month=code_to_month(match.group("month_code")),
+                option_type=ne_opt_type,
+                strike=match.group("strike"),
+            )
+        )
+
+    return results
+
+
+def _pick_unique_class(ticker: str, candidates: list[TickerClass]) -> TickerClass:
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        raise AmbiguousClassifyError(ticker, candidates)
+    raise ValueError(f"Unable to classify ticker: {ticker}")
+
+
+def classify_ticker(
+    ticker: str,
+    spec: SpecRepository | None = None,
+    exchange: str | None = None,
+) -> TickerClass:
+    """Classify a ticker into asset type and root without calendars or validity.
+
+    Faster than :func:`parse_ticker` for UI filters and routing: skips expiration
+    rules, trading calendars, front-month generation, and cycle-month checks.
+    Full tickers, cash equities, futures roots, and ``SYMBOL[n]`` tags are supported.
+    """
+    if spec is None:
+        spec = load_spec()
+
+    key = ticker.upper()
+    if key in spec.equities:
+        eq = spec.equities[key]
+        if exchange is None or eq.exchange.upper() == exchange.upper():
+            return TickerClass(
+                asset_type="equity",
+                root=eq.symbol,
+                exchange=eq.exchange,
+            )
+
+    candidates = _classify_futures(ticker, spec) + _classify_options(ticker, spec)
+    if exchange is not None:
+        candidates = [
+            c
+            for c in candidates
+            if c.exchange and c.exchange.upper() == exchange.upper()
+        ]
+    if candidates:
+        return _pick_unique_class(ticker, candidates)
+
+    tag_match = _TAG_RE.match(ticker)
+    if tag_match is not None:
+        root = tag_match.group("root").upper()
+        contract = spec.contracts.get(root)
+        if contract is not None and (
+            exchange is None or contract.exchange.upper() == exchange.upper()
+        ):
+            return TickerClass(
+                asset_type="future",
+                root=contract.symbol,
+                exchange=contract.exchange,
+            )
+        raise ValueError(f"Unable to classify ticker: {ticker}")
+
+    contract = spec.contracts.get(key)
+    if contract is not None and (
+        exchange is None or contract.exchange.upper() == exchange.upper()
+    ):
+        return TickerClass(
+            asset_type="future",
+            root=contract.symbol,
+            exchange=contract.exchange,
+        )
+
+    raise ValueError(f"Unable to classify ticker: {ticker}")
 
 
 # ---------------------------------------------------------------------------
