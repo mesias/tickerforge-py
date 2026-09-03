@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import warnings
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -623,39 +623,21 @@ _TAG_RE = re.compile(
 
 def _is_roll_day(contract: ContractSpec, ref_date: date, spec: SpecRepository) -> bool:
     from tickerforge.calendars import get_calendar
+    from tickerforge.contract_cycle import resolve_contract_months
     from tickerforge.expiration_rules import resolve_expiration
-    from tickerforge.ticker_generator import _collect_eligible_contracts
-
-    eligible = _collect_eligible_contracts(contract, ref_date, spec)
-    if not eligible:
-        return False
-    front_year, front_month = eligible[0]
+    from tickerforge.ticker_generator import _resolve_last_trading_day
 
     rule = spec.expiration_rules[contract.expiration_rule]
     calendar = get_calendar(contract.exchange)
-    front_expiration = resolve_expiration(
-        contract, front_year, front_month, rule, calendar
-    )
+    cycle = spec.contract_cycles[contract.contract_cycle]
 
-    if contract.symbol in ("DOL", "WDO"):
-        roll_date = front_expiration
-    else:
-        sessions = calendar.sessions_in_range(
-            front_expiration, front_expiration + timedelta(days=10)
-        )
-        session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
-        future_sessions = [d for d in session_dates if d > front_expiration]
-        if not future_sessions:
-            return False
-        roll_date = future_sessions[0]
-
-    sessions = calendar.sessions_in_range(roll_date - timedelta(days=30), roll_date)
-    session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
-    past_sessions = [d for d in session_dates if d < roll_date]
-    if not past_sessions:
-        return False
-    last_trading_day = past_sessions[-1]
-    return ref_date == last_trading_day
+    for year in (ref_date.year - 1, ref_date.year, ref_date.year + 1):
+        for month in resolve_contract_months(cycle, year):
+            expiration_date = resolve_expiration(contract, year, month, rule, calendar)
+            ltd = _resolve_last_trading_day(expiration_date, rule, calendar)
+            if ref_date == ltd:
+                return True
+    return False
 
 
 def _resolve_tagged_root(
@@ -696,7 +678,7 @@ def _resolve_tagged_root(
     if result is not None:
         from tickerforge.calendars import get_calendar
         from tickerforge.expiration_rules import resolve_expiration
-        from tickerforge.ticker_generator import _still_tradeable
+        from tickerforge.ticker_generator import _is_contract_tradeable
 
         rule = spec.expiration_rules[contract.expiration_rule]
         calendar = get_calendar(contract.exchange)
@@ -705,7 +687,7 @@ def _resolve_tagged_root(
         expiration_date = resolve_expiration(
             contract, result.year, result.month, rule, calendar
         )
-        is_valid = _still_tradeable(ref_date, expiration_date, contract)
+        is_valid = _is_contract_tradeable(ref_date, expiration_date, rule, calendar)
 
         result = result.model_copy(
             update={
@@ -768,14 +750,14 @@ def parse_ticker(
             assert result.month is not None
             from tickerforge.calendars import get_calendar
             from tickerforge.expiration_rules import resolve_expiration
-            from tickerforge.ticker_generator import _still_tradeable
+            from tickerforge.ticker_generator import _is_contract_tradeable
 
             rule = spec.expiration_rules[contract.expiration_rule]
             calendar = get_calendar(contract.exchange)
             expiration_date = resolve_expiration(
                 contract, result.year, result.month, rule, calendar
             )
-            is_valid = _still_tradeable(ref_date, expiration_date, contract)
+            is_valid = _is_contract_tradeable(ref_date, expiration_date, rule, calendar)
 
             result = result.model_copy(
                 update={
@@ -806,7 +788,11 @@ def parse_ticker(
         cond = tag_match.group("cond")
         if cond is not None:
             offset_str = tag_match.group("offset")
-            offset = int(offset_str) if offset_str is not None else 1
+            if offset_str is not None:
+                offset = int(offset_str)
+            else:
+                rule = spec.expiration_rules[contract.expiration_rule]
+                offset = 0 if rule.should_roll_on_last_trading_day() else 1
         else:
             offset = int(tag_match.group("offset_val"))
 
