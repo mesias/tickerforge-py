@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from dateutil import parser as date_parser
 
 from tickerforge.calendars import get_calendar
 from tickerforge.contract_cycle import resolve_contract_months
 from tickerforge.expiration_rules import _month_sessions, resolve_expiration
-from tickerforge.models import ContractSpec
+from tickerforge.models import ContractSpec, ExpirationRule
 from tickerforge.month_codes import month_to_code
 from tickerforge.spec_loader import SpecRepository, load_spec
 
@@ -23,12 +23,12 @@ def _coerce_date(value: str | date | datetime) -> date:
 
 def format_contract_ticker(contract: ContractSpec, year: int, month: int) -> str:
     """Build a futures ticker string from contract metadata and expiry month."""
+    month_code = month_to_code(month)
+    yy = f"{year % 100:02d}"
     return contract.ticker_format.format(
         symbol=contract.symbol,
-        month_code=month_to_code(month),
-        yy=f"{year % 100:02d}",
-        year=year,
-        month=month,
+        month_code=month_code,
+        yy=yy,
     )
 
 
@@ -36,13 +36,52 @@ def _format_ticker(contract: ContractSpec, year: int, month: int) -> str:
     return format_contract_ticker(contract, year, month)
 
 
-def _still_tradeable(
-    as_of_date: date, expiration_date: date, contract: ContractSpec
+def _resolve_last_trading_day(
+    expiration_date: date,
+    rule: ExpirationRule,
+    calendar,
+) -> date:
+    """Resolve the final session a contract can be traded on the exchange.
+
+    Based on the ExpirationRule's effective_last_trading_day_offset().
+    """
+    offset = rule.effective_last_trading_day_offset()
+    if offset < 0:
+        days_back = abs(offset) * 7 + 10
+        sessions = calendar.sessions_in_range(
+            (expiration_date - timedelta(days=days_back)).isoformat(),
+            expiration_date.isoformat(),
+        )
+        session_dates = [s.date() if hasattr(s, "date") else s for s in sessions]
+        prior_sessions = [d for d in session_dates if d < expiration_date]
+        idx = len(prior_sessions) + offset
+        if 0 <= idx < len(prior_sessions):
+            return prior_sessions[idx]
+    return expiration_date
+
+
+def _is_front_eligible(
+    as_of_date: date,
+    expiration_date: date,
+    rule: ExpirationRule,
+    calendar,
 ) -> bool:
-    """B3 monthly FX (DOL/WDO) rolls off on expiry day; index-style contracts stay through it."""
-    if contract.symbol in ("DOL", "WDO"):
-        return as_of_date < expiration_date
-    return as_of_date <= expiration_date
+    """Check if a contract is eligible in the forward contract list (front-month at offset=0)."""
+    ltd = _resolve_last_trading_day(expiration_date, rule, calendar)
+    if rule.should_roll_on_last_trading_day():
+        return as_of_date < ltd
+    return as_of_date <= ltd
+
+
+def _is_contract_tradeable(
+    as_of_date: date,
+    expiration_date: date,
+    rule: ExpirationRule,
+    calendar,
+) -> bool:
+    """Check if a specific contract can be traded on as_of_date (up to its last trading day)."""
+    ltd = _resolve_last_trading_day(expiration_date, rule, calendar)
+    return as_of_date <= ltd
 
 
 def _is_month_in_calendar_range(calendar, year: int, month: int) -> bool:
@@ -71,7 +110,7 @@ def _collect_eligible_contracts(
             if not _month_sessions(calendar, year, month):
                 continue
             expiration_date = resolve_expiration(contract, year, month, rule, calendar)
-            if _still_tradeable(as_of_date, expiration_date, contract):
+            if _is_front_eligible(as_of_date, expiration_date, rule, calendar):
                 eligible_contracts.append((year, month))
     return eligible_contracts
 
@@ -101,7 +140,7 @@ def _collect_expired_contracts(
             if not _month_sessions(calendar, year, month):
                 continue
             expiration_date = resolve_expiration(contract, year, month, rule, calendar)
-            if not _still_tradeable(as_of_date, expiration_date, contract):
+            if not _is_front_eligible(as_of_date, expiration_date, rule, calendar):
                 expired_contracts.append((year, month))
 
     expired_contracts.sort(reverse=True)

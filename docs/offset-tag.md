@@ -19,7 +19,7 @@ changes. Options are unaffected.
 
 This works uniformly across monthly (DOL) and bimonthly (WIN/IND) cycles because
 the index is computed from the same still-tradeable / expired lists the generator
-already builds. `DOL`/`WDO` roll off on expiry day (`as_of < expiration`); other
+already builds. `first_business_day` contracts (`DOL`, `WDO`, `DI1`) roll off on their last trading day (`as_of < last_trading_day`); other
 contracts stay tradeable through expiry day (`as_of <= expiration`) — the expired
 list respects that per-contract rule automatically.
 

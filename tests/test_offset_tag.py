@@ -216,15 +216,15 @@ def test_dol_roll_tag_valid_on_roll_day():
     # June 30th is the last trading day of DOLN26 (which expires on July 1st)
     ref = "2026-06-30"
 
-    # Shortcut: DOL[@roll] resolves to the next contract (offset=1) -> DOLQ26
+    # Shortcut: DOL[@roll] resolves to the rolled front contract (offset=0) -> DOLQ26
     parsed = parse_ticker("DOL[@roll]", spec=forge.spec, reference_date=ref)
     assert parsed.ticker == "DOLQ26"
-    assert parsed.offset == 1
+    assert parsed.offset == 0
 
-    # Explicit 0: DOL[0@roll] resolves to the expiring contract -> DOLN26
-    parsed_zero = parse_ticker("DOL[0@roll]", spec=forge.spec, reference_date=ref)
-    assert parsed_zero.ticker == "DOLN26"
-    assert parsed_zero.offset == 0
+    # Expiring contract: DOL[-1@roll] resolves to the expiring contract -> DOLN26
+    parsed_expiring = parse_ticker("DOL[-1@roll]", spec=forge.spec, reference_date=ref)
+    assert parsed_expiring.ticker == "DOLN26"
+    assert parsed_expiring.offset == -1
 
 
 def test_dol_roll_tag_invalid_on_non_roll_day():

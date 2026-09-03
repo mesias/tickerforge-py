@@ -97,6 +97,25 @@ class ExpirationRule(BaseModel):
     day: int | None = None
     n: int | None = None
     tags: list[str] = Field(default_factory=list)
+    last_trading_day: str | None = None
+    last_trading_day_offset: int | None = None
+    roll_on_last_trading_day: bool | None = None
+
+    def effective_last_trading_day_offset(self) -> int:
+        if self.last_trading_day_offset is not None:
+            return self.last_trading_day_offset
+        if self.last_trading_day in ("prior_business_day", "previous_business_day"):
+            return -1
+        if self.last_trading_day == "same_day":
+            return 0
+        if self.type == "first_business_day":
+            return -1
+        return 0
+
+    def should_roll_on_last_trading_day(self) -> bool:
+        if self.roll_on_last_trading_day is not None:
+            return self.roll_on_last_trading_day
+        return self.effective_last_trading_day_offset() < 0
 
 
 class OptionSpec(BaseModel):
