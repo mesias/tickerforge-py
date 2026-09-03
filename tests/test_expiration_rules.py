@@ -316,3 +316,82 @@ def test_rule_type_executions_and_edge_cases():
         ExpirationRule(name="t", type="fixed_day", day=3),
         calendar,
     ) == date(2026, 6, 8)
+
+
+def test_expiration_rule_last_trading_day_offset_and_roll():
+    # 1. explicit last_trading_day_offset (covers line 106)
+    rule_offset = ExpirationRule(
+        name="custom_offset",
+        type="first_business_day",
+        last_trading_day="prior_business_day",
+        last_trading_day_offset=-3,
+    )
+    assert rule_offset.effective_last_trading_day_offset() == -3
+
+    rule_offset_zero = ExpirationRule(
+        name="zero_offset",
+        type="custom",
+        last_trading_day_offset=0,
+    )
+    assert rule_offset_zero.effective_last_trading_day_offset() == 0
+
+    # 2. prior_business_day / previous_business_day
+    rule_prior = ExpirationRule(
+        name="prior",
+        type="custom",
+        last_trading_day="prior_business_day",
+    )
+    assert rule_prior.effective_last_trading_day_offset() == -1
+
+    rule_prev = ExpirationRule(
+        name="prev",
+        type="custom",
+        last_trading_day="previous_business_day",
+    )
+    assert rule_prev.effective_last_trading_day_offset() == -1
+
+    # 3. same_day
+    rule_same = ExpirationRule(
+        name="same",
+        type="custom",
+        last_trading_day="same_day",
+    )
+    assert rule_same.effective_last_trading_day_offset() == 0
+
+    # 4. type == "first_business_day" with no last_trading_day (covers line 112)
+    rule_fbd = ExpirationRule(
+        name="fbd",
+        type="first_business_day",
+    )
+    assert rule_fbd.effective_last_trading_day_offset() == -1
+
+    # 5. default fallback
+    rule_default = ExpirationRule(
+        name="other",
+        type="third_friday",
+    )
+    assert rule_default.effective_last_trading_day_offset() == 0
+
+    # 6. should_roll_on_last_trading_day explicit override
+    assert (
+        ExpirationRule(
+            name="r",
+            type="custom",
+            roll_on_last_trading_day=True,
+        ).should_roll_on_last_trading_day()
+        is True
+    )
+    assert (
+        ExpirationRule(
+            name="r",
+            type="first_business_day",
+            roll_on_last_trading_day=False,
+        ).should_roll_on_last_trading_day()
+        is False
+    )
+
+    # 7. should_roll_on_last_trading_day derived from offset < 0
+    assert rule_offset.should_roll_on_last_trading_day() is True
+    assert rule_offset_zero.should_roll_on_last_trading_day() is False
+    assert rule_fbd.should_roll_on_last_trading_day() is True
+    assert rule_default.should_roll_on_last_trading_day() is False
